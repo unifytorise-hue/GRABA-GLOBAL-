@@ -1,0 +1,1843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GRABA — Making Travel Simple</title>
+<style>
+  :root{
+    --ink:#0f0b15;
+    --purple:#571f84;
+    --purple-deep:#3a1259;
+    --glow:#bc77ff;
+    --bg:#f9f8fb;
+    --paper:#ffffff;
+    --line:rgba(255,255,255,0.12);
+    --text-dim:rgba(249,248,251,0.6);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--ink);
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--bg);}
+  #app{position:fixed;inset:0;overflow:hidden;}
+
+  /* ---------- GLOBE VIEW ---------- */
+  #globeCanvas{position:absolute;inset:0;display:block;touch-action:none;}
+  #globeUI{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;
+    pointer-events:none;padding:28px 20px 34px;}
+  .brand{display:flex;align-items:center;gap:10px;pointer-events:auto;}
+  .brand .mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--glow),var(--purple));
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#fff;letter-spacing:-.5px;}
+  .brand .name{font-weight:700;font-size:19px;letter-spacing:.3px;}
+  .brand .tag{font-size:10px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;margin-left:2px;}
+
+  .searchWrap{pointer-events:auto;display:flex;flex-direction:column;align-items:center;gap:14px;}
+  .prompt{font-size:13px;color:var(--text-dim);letter-spacing:.5px;text-align:center;}
+  .searchBox{width:min(92vw,420px);background:rgba(255,255,255,0.08);backdrop-filter:blur(14px);
+    border:1px solid var(--line);border-radius:18px;padding:6px;display:flex;align-items:center;gap:6px;
+    box-shadow:0 10px 40px rgba(87,31,132,0.35);}
+  .searchBox input{flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:16px;
+    padding:12px 10px;font-family:inherit;}
+  .searchBox input::placeholder{color:rgba(255,255,255,.4);}
+  .searchBox button{background:linear-gradient(135deg,var(--glow),var(--purple));border:none;color:#fff;
+    width:44px;height:44px;border-radius:14px;font-size:18px;cursor:pointer;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;transition:transform .15s;}
+  .searchBox button:active{transform:scale(0.9);}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:420px;}
+  .tripsBtn{margin-left:10px;pointer-events:auto;background:rgba(255,255,255,0.08);border:1px solid var(--line);
+    color:var(--bg);font-size:11.5px;font-weight:700;padding:7px 12px;border-radius:100px;cursor:pointer;
+    display:flex;align-items:center;gap:5px;}
+  .tripsBtn:active{background:rgba(255,255,255,0.18);}
+  .walletChip{pointer-events:auto;cursor:pointer;background:rgba(255,255,255,0.06);border:1px solid var(--line);
+    color:var(--text-dim);font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:100px;
+    display:inline-flex;align-items:center;gap:4px;margin-left:8px;}
+  #mapHeader .walletChip{background:#faf6ff;border-color:#eee;color:var(--purple);}
+
+  /* ---------- ITINERARY / MY TRIPS VIEW ---------- */
+  #tripsView{position:absolute;inset:0;background:var(--bg);display:none;flex-direction:column;color:var(--ink);z-index:25;}
+  #tripsHeader{display:flex;align-items:center;gap:12px;padding:16px 16px 12px;background:var(--paper);
+    box-shadow:0 2px 10px rgba(0,0,0,0.05);}
+  #tripsHeader .t{flex:1;font-weight:800;font-size:16px;}
+  #tripsList{flex:1;overflow-y:auto;padding:14px 16px 30px;}
+  .tripCard{background:#fff;border:1px solid #eee;border-radius:16px;padding:14px 16px;margin-bottom:12px;}
+  .tripCard .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
+  .tripCard .dest{font-weight:800;font-size:14.5px;}
+  .tripCard .ref{font-size:10.5px;color:#999;margin-top:2px;}
+  .tripCard .amt{font-weight:800;color:var(--purple);font-size:14px;}
+  .tripCard .row{display:flex;justify-content:space-between;font-size:11.5px;color:#777;padding:2px 0;}
+  .tripCard .badge{display:inline-block;background:#faf6ff;color:var(--purple);font-size:9.5px;font-weight:800;
+    padding:2px 8px;border-radius:7px;margin-top:6px;letter-spacing:.3px;}
+  #tripsEmpty{text-align:center;color:#999;font-size:13px;padding:60px 20px;}
+
+  /* ---------- TRAVEL WALLET (BRS Process 6.0; Value Streams M/N; Concept C) ---------- */
+  #walletOverlay{position:absolute;inset:0;background:rgba(15,11,21,0.55);display:none;z-index:26;
+    align-items:flex-end;}
+  #walletSheet{width:100%;max-height:88vh;background:var(--paper);border-radius:22px 22px 0 0;
+    overflow-y:auto;color:var(--ink);animation:slideUp .28s ease;position:relative;}
+  #closeWallet{position:absolute;top:14px;right:16px;width:32px;height:32px;border-radius:50%;border:none;
+    background:#f3f3f3;color:#555;font-size:14px;cursor:pointer;}
+  #walletSheet .handle{width:38px;height:4px;background:rgba(255,255,255,.5);border-radius:4px;margin:10px auto 0;}
+  #walletBalanceHead{padding:26px 20px 18px;text-align:center;background:linear-gradient(135deg,var(--purple),var(--purple-deep));
+    color:#fff;}
+  #walletBalanceHead .lab{font-size:11.5px;text-transform:uppercase;letter-spacing:1px;opacity:.75;margin-bottom:6px;}
+  #walletBalanceHead .amt{font-size:34px;font-weight:800;}
+  #topUpChips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .topUpChip{flex:1 1 calc(50% - 8px);background:#faf6ff;border:1.5px solid #eee;color:var(--purple);
+    font-weight:800;font-size:13px;padding:11px 6px;border-radius:12px;cursor:pointer;}
+  .topUpChip:active{background:#f1e6ff;}
+  #customTopUpRow{display:flex;gap:8px;}
+  #customTopUpRow input{flex:1;border:1.5px solid #eee;border-radius:12px;padding:10px 12px;font-size:13.5px;
+    font-family:inherit;color:var(--ink);}
+  #customTopUpRow button{background:linear-gradient(135deg,var(--glow),var(--purple));border:none;color:#fff;
+    padding:0 18px;border-radius:12px;font-weight:800;font-size:13px;cursor:pointer;}
+  #topUpMethodNote{font-size:11px;color:#999;margin-top:8px;}
+  #walletTxList{display:flex;flex-direction:column;gap:8px;}
+  .txRow{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:8px 0;
+    border-bottom:1px solid #f5f5f5;}
+  .txRow .txNote{color:#777;}
+  .txRow .txNote .txTime{display:block;font-size:10.5px;color:#aaa;}
+  .txRow .txAmt{font-weight:800;}
+  .txRow .txAmt.pos{color:#22c55e;}
+  .txRow .txAmt.neg{color:var(--purple);}
+  #txEmpty{text-align:center;color:#aaa;font-size:12.5px;padding:16px 0;}
+  .chip{pointer-events:auto;background:rgba(255,255,255,0.07);border:1px solid var(--line);color:var(--bg);
+    padding:7px 14px;border-radius:100px;font-size:12.5px;cursor:pointer;transition:background .15s;}
+  .chip:active{background:rgba(255,255,255,0.18);}
+  #suggestBox{position:absolute;bottom:100%;left:0;right:0;margin-bottom:8px;background:rgba(20,10,30,0.95);
+    border:1px solid var(--line);border-radius:14px;overflow:hidden;display:none;}
+  #suggestBox div{padding:11px 16px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--line);}
+  #suggestBox div:last-child{border-bottom:none;}
+  #suggestBox div:active{background:rgba(255,255,255,0.08);}
+  .searchOuter{position:relative;pointer-events:auto;}
+
+  /* ---------- DESTINATION MAP VIEW ---------- */
+  #mapView{position:absolute;inset:0;background:var(--bg);display:none;flex-direction:column;color:var(--ink);}
+  #mapHeader{display:flex;align-items:center;gap:12px;padding:16px 16px 12px;background:var(--paper);
+    box-shadow:0 2px 10px rgba(0,0,0,0.05);z-index:5;}
+  #backBtn,#tripsBackBtn{width:36px;height:36px;border-radius:11px;border:1px solid #eee;background:#fff;font-size:16px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+  #mapHeader .dest{flex:1;}
+  #mapHeader .dest .city{font-weight:800;font-size:17px;line-height:1.1;}
+  #mapHeader .dest .meta{font-size:11.5px;color:#888;margin-top:2px;}
+  #mapHeader .liveDot{width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;
+    margin-right:5px;animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  #mapCanvas{flex:1;position:relative;overflow:hidden;background:#eef0f3;}
+  #leafletMap{position:absolute;inset:0;z-index:0;}
+  .leaflet-control-attribution{font-size:9px !important;}
+  .leaflet-div-icon{background:transparent;border:none;}
+  .leaflet-marker-icon{background:none;}
+  .roadline{position:absolute;background:rgba(0,0,0,0.06);}
+  .pin{position:absolute;transform:translate(-50%,-100%);cursor:pointer;transition:transform .15s;z-index:2;}
+  .pin:active{transform:translate(-50%,-100%) scale(.9);}
+  .pin .dot{width:16px;height:16px;border-radius:50% 50% 50% 0;background:var(--purple);
+    transform:rotate(-45deg);box-shadow:0 3px 8px rgba(87,31,132,.5);border:2px solid #fff;}
+  .pin.me .dot{background:#0f0b15;}
+  .pin.plain .dot.small{width:11px;height:11px;box-shadow:0 2px 6px rgba(87,31,132,.4);}
+  .pin.plain{z-index:1;}
+  .pinCard{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);background:#fff;
+    display:flex;align-items:center;gap:7px;padding:5px 10px 5px 5px;border-radius:12px;
+    box-shadow:0 4px 14px rgba(0,0,0,.16);white-space:nowrap;}
+  .pinThumb{width:28px;height:28px;border-radius:8px;overflow:hidden;flex-shrink:0;}
+  .pinThumb svg,.pinThumb img{width:100%;height:100%;display:block;object-fit:cover;}
+  .pinThumb svg{width:100%;height:100%;display:block;}
+  .pinMeta{text-align:left;}
+  .pinName{font-size:10.5px;font-weight:800;line-height:1.15;max-width:110px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;color:var(--ink);}
+  .pinPrice{font-size:10.5px;font-weight:700;color:var(--purple);margin-top:1px;}
+  /* ---------- SEARCH RADIUS / TYPE FILTER (BRS §5.8.9-11, Distinguishing Concept A) ---------- */
+  #mapFilters{display:flex;gap:8px;overflow-x:auto;padding:10px 16px;background:var(--paper);
+    border-bottom:1px solid #f0f0f0;z-index:5;}
+  #mapFilters::-webkit-scrollbar{display:none;}
+  .filterChip{flex:0 0 auto;padding:7px 14px;border-radius:100px;font-size:12px;font-weight:700;
+    border:1.5px solid #eee;background:#fff;color:#555;cursor:pointer;white-space:nowrap;}
+  .filterChip.sel{border-color:var(--purple);background:#faf6ff;color:var(--purple);}
+  .radiusRing{position:absolute;left:50%;top:50%;border-radius:50%;pointer-events:none;z-index:1;
+    border:1.5px dashed rgba(87,31,132,0.4);background:rgba(87,31,132,0.05);
+    transition:width .5s ease, height .5s ease; transform:translate(-50%,-50%);}
+  #radiusNote{display:none;background:rgba(87,31,132,.08);color:var(--purple);
+    padding:8px 16px;font-size:11.5px;font-weight:700;text-align:center;letter-spacing:.2px;
+    border-bottom:1px solid rgba(87,31,132,.15);z-index:5;}
+
+  /* Van Der Belt carousel */
+  #belt{background:var(--paper);padding:14px 0 18px;box-shadow:0 -6px 20px rgba(0,0,0,0.06);z-index:5;}
+  #beltLabel{padding:0 16px 10px;display:flex;justify-content:space-between;align-items:center;}
+  #beltLabel .t{font-weight:800;font-size:14px;}
+  #beltLabel .s{font-size:11px;color:#888;}
+  #beltScroll{display:flex;gap:12px;overflow-x:auto;padding:0 16px;scroll-snap-type:x proximity;}
+  #beltScroll::-webkit-scrollbar{display:none;}
+  .card{scroll-snap-align:start;flex:0 0 158px;background:#fff;border-radius:16px;overflow:hidden;
+    border:1px solid #eee;cursor:pointer;transition:transform .15s;}
+  .card:active{transform:scale(.96);}
+  .card img{width:100%;height:96px;object-fit:cover;display:block;background:#ddd;position:relative;z-index:1;}
+  .thumb{position:relative;width:100%;height:96px;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+  .thumb svg,.heroWrap svg,.thumb img,.heroWrap img{width:100%;height:100%;display:block;object-fit:cover;}
+  .typeBadge{position:absolute;top:7px;left:7px;background:rgba(15,11,21,0.62);color:#fff;font-size:9px;
+    font-weight:700;padding:3px 7px;border-radius:7px;letter-spacing:.3px;z-index:2;}
+  .matchBadge{position:absolute;bottom:7px;left:7px;background:linear-gradient(135deg,var(--glow),var(--purple));
+    color:#fff;font-size:9px;font-weight:800;padding:3px 7px;border-radius:7px;letter-spacing:.3px;z-index:2;
+    box-shadow:0 3px 8px rgba(87,31,132,.5);}
+  .dismissBtn{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;border:none;
+    background:rgba(15,11,21,0.55);color:#fff;font-size:13px;line-height:1;cursor:pointer;z-index:3;
+    display:flex;align-items:center;justify-content:center;padding:0;}
+  .dismissBtn:active{background:rgba(15,11,21,0.85);transform:scale(.9);}
+  .thumb .thumbIcon{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:26px;opacity:.9;}
+  .heroWrap{position:relative;width:100%;height:140px;border-radius:14px;overflow:hidden;margin-bottom:12px;
+    display:flex;align-items:center;justify-content:center;}
+  .heroWrap img{position:relative;z-index:1;width:100%;height:100%;object-fit:cover;display:block;}
+  .heroWrap .thumbIcon{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:40px;opacity:.9;}
+  .card .info{padding:9px 10px 11px;}
+  .card .name{font-size:12.5px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .card .rooms{font-size:10px;color:#888;margin-top:2px;}
+  .card .price{font-size:12.5px;font-weight:800;color:var(--purple);margin-top:5px;}
+  .card .price span{font-weight:500;color:#999;font-size:10px;}
+
+  /* ---------- PACKAGE BUILDER MODAL ---------- */
+  #modalOverlay{position:absolute;inset:0;background:rgba(15,11,21,0.55);display:none;z-index:20;
+    align-items:flex-end;}
+  #modal{width:100%;max-height:88vh;background:var(--paper);border-radius:22px 22px 0 0;overflow-y:auto;
+    color:var(--ink);animation:slideUp .28s ease;}
+  @keyframes slideUp{from{transform:translateY(30px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  #modal .handle{width:38px;height:4px;background:#e2e2e2;border-radius:4px;margin:10px auto 4px;}
+  #modal .head{padding:6px 20px 14px;border-bottom:1px solid #f0f0f0;}
+  #modal .head .name{font-size:18px;font-weight:800;}
+  #modal .head .loc{font-size:12px;color:#888;margin-top:2px;}
+  .sec{padding:16px 20px;border-bottom:1px solid #f5f5f5;}
+  .sec .lab{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--purple);margin-bottom:10px;}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;}
+  .row .l{font-size:13.5px;font-weight:600;}
+  .row .r{font-size:13.5px;font-weight:700;}
+  .row .sub{font-size:11px;color:#999;font-weight:400;margin-top:1px;}
+  .legOption{display:flex;align-items:center;justify-content:space-between;padding:11px 12px;border:1.5px solid #eee;
+    border-radius:12px;margin-bottom:8px;cursor:pointer;}
+  .legOption.sel{border-color:var(--purple);background:#faf6ff;}
+  .legOption .t1{font-size:13px;font-weight:700;}
+  .legOption .t2{font-size:11px;color:#888;margin-top:2px;}
+  .legOption .p{font-size:13px;font-weight:800;color:var(--purple);}
+  .stepper{display:flex;align-items:center;gap:14px;}
+  .stepper button{width:30px;height:30px;border-radius:9px;border:1px solid #ddd;background:#fff;font-size:16px;cursor:pointer;}
+  .stepper .n{font-weight:800;min-width:16px;text-align:center;}
+  .shuffleBtn{width:100%;padding:10px;border:1.5px dashed #ddd;border-radius:12px;background:#fff;
+    color:#888;font-size:12.5px;font-weight:700;cursor:pointer;margin-top:2px;}
+  #totalBar{position:sticky;bottom:0;background:#fff;border-top:1px solid #eee;padding:14px 20px 22px;
+    display:flex;align-items:center;gap:14px;}
+  #totalBar .tot{flex:1;}
+  #totalBar .tot .lab{font-size:10.5px;color:#999;font-weight:600;}
+  #totalBar .tot .amt{font-size:20px;font-weight:900;}
+  #bookBtn{background:linear-gradient(135deg,var(--glow),var(--purple));color:#fff;border:none;
+    padding:14px 26px;border-radius:14px;font-weight:800;font-size:14.5px;cursor:pointer;}
+  #bookBtn:active{transform:scale(.97);}
+  #closeModal{position:absolute;top:14px;right:16px;width:30px;height:30px;border-radius:50%;
+    background:#f2f2f2;border:none;font-size:14px;cursor:pointer;z-index:2;}
+
+  /* ---------- CONFIRMATION ---------- */
+  #confirmOverlay{position:absolute;inset:0;background:var(--ink);display:none;z-index:30;
+    align-items:center;justify-content:flex-start;flex-direction:column;padding:30px;text-align:center;
+    overflow-y:auto;}
+  #confirmOverlay .tick{width:74px;height:74px;border-radius:50%;background:linear-gradient(135deg,var(--glow),var(--purple));
+    display:flex;align-items:center;justify-content:center;font-size:34px;margin:8px 0 22px;flex-shrink:0;}
+  #confirmOverlay h2{margin:0 0 8px;font-size:21px;}
+  #confirmOverlay p{margin:0 0 26px;color:var(--text-dim);font-size:13.5px;max-width:280px;line-height:1.5;}
+  #confirmOverlay .ref{background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:14px;
+    padding:16px 20px;width:100%;max-width:320px;margin-bottom:16px;text-align:left;}
+  #confirmOverlay .ref .r{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;color:var(--bg);}
+  #confirmOverlay .ref .r span:first-child{color:var(--text-dim);}
+  #confirmOverlay .ref .r.total{border-top:1px solid var(--line);margin-top:4px;padding-top:9px;font-weight:800;}
+  #suggestUpsell{width:100%;max-width:320px;background:rgba(188,119,255,0.08);border:1px dashed rgba(188,119,255,0.4);
+    border-radius:14px;padding:12px 16px;margin-bottom:22px;text-align:left;}
+  #suggestUpsell .t{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--glow);margin-bottom:6px;}
+  #suggestUpsell button{width:100%;background:transparent;border:1.5px solid rgba(188,119,255,0.5);color:#fff;
+    padding:9px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;margin-top:6px;}
+  #suggestUpsell button.added{border-color:#22c55e;color:#22c55e;}
+  #doneBtn{background:transparent;border:1px solid var(--line);color:#fff;padding:13px 30px;border-radius:14px;
+    font-weight:700;font-size:13.5px;cursor:pointer;margin-bottom:10px;flex-shrink:0;}
+  #viewTripsBtn{background:none;border:none;color:var(--text-dim);font-size:12.5px;text-decoration:underline;
+    cursor:pointer;margin-bottom:20px;flex-shrink:0;}
+
+  .hint{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:9.5px;color:rgba(255,255,255,0.28);
+    letter-spacing:.3px;pointer-events:none;}
+
+  #countryChip{display:none;position:absolute;left:50%;bottom:70px;transform:translateX(-50%);
+    background:rgba(20,10,30,0.92);border:1px solid var(--line);border-radius:16px;padding:14px 16px;
+    min-width:240px;text-align:center;z-index:5;backdrop-filter:blur(10px);}
+  #countryChip .countryChipName{font-weight:800;font-size:15px;margin-bottom:10px;}
+  #countryChip .countryChipRow{display:flex;gap:8px;align-items:center;}
+  #countryChipClose{width:34px;height:34px;flex-shrink:0;border-radius:10px;border:1px solid var(--line);
+    background:transparent;color:#fff;font-size:13px;cursor:pointer;}
+  #countryChipExplore{flex:1;padding:10px 12px;border:none;border-radius:10px;
+    background:linear-gradient(135deg,var(--glow),var(--purple));color:#fff;font-weight:700;font-size:13px;cursor:pointer;}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ================= GLOBE VIEW ================= -->
+  <canvas id="globeCanvas"></canvas>
+  <div id="globeUI">
+    <div class="brand">
+      <div class="mark">G</div>
+      <div class="name">Graba</div>
+      <div class="tag">Making Travel Simple</div>
+      <span class="walletChip" id="walletChipGlobe">💳 R —</span>
+      <button class="tripsBtn" id="tripsBtnGlobe">🧳 My Trips</button>
+    </div>
+
+    <div class="searchWrap">
+      <div class="prompt">Spin the globe, tap on it or tell us where to.</div>
+      <div class="searchOuter">
+        <div id="suggestBox"></div>
+        <div class="searchBox">
+          <input id="destInput" type="text" placeholder="Try 'Zanzibar', 'Dubai', 'Maldives'..." autocomplete="off">
+          <button id="goBtn">→</button>
+        </div>
+      </div>
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+  <div class="hint" id="globeHint">One search. Flights, stays &amp; transfers — priced and booked as one trip.</div>
+
+  <div id="countryChip">
+    <div class="countryChipName" id="countryChipName">—</div>
+    <div class="countryChipRow">
+      <button id="countryChipClose">✕</button>
+      <button id="countryChipExplore">Explore stays here →</button>
+    </div>
+  </div>
+
+  <!-- ================= DESTINATION / MAP VIEW ================= -->
+  <div id="mapView">
+    <div id="mapHeader">
+      <button id="backBtn">←</button>
+      <div class="dest">
+        <div class="city" id="destCity">—</div>
+        <div class="meta"><span class="liveDot"></span><span id="destMeta">Searching live availability…</span>
+          <span class="walletChip" id="walletChipMap">💳 R —</span></div>
+      </div>
+      <button class="tripsBtn" id="tripsBtnMap" style="color:var(--ink);border-color:#eee;">🧳</button>
+    </div>
+    <div id="mapFilters"></div>
+    <div id="radiusNote"></div>
+    <div id="mapCanvas">
+      <div id="leafletMap"></div>
+    </div>
+    <div id="belt">
+      <div id="beltLabel">
+        <div class="t">Stays near you</div>
+        <div class="s" id="beltCount">0 of ∞</div>
+      </div>
+      <div id="beltScroll"></div>
+    </div>
+  </div>
+
+  <!-- ================= ITINERARY / MY TRIPS VIEW ================= -->
+  <div id="tripsView">
+    <div id="tripsHeader">
+      <button id="tripsBackBtn">←</button>
+      <div class="t">My Trips</div>
+      <span class="walletChip" id="walletChipTrips">💳 R —</span>
+    </div>
+    <div id="tripsList"></div>
+  </div>
+
+  <!-- ================= TRAVEL WALLET ================= -->
+  <div id="walletOverlay">
+    <div id="walletSheet">
+      <button id="closeWallet">✕</button>
+      <div class="handle"></div>
+      <div id="walletBalanceHead">
+        <div class="lab">Travel Wallet balance</div>
+        <div class="amt" id="walletBigAmt">R 0</div>
+      </div>
+      <div class="sec">
+        <div class="lab">Top up</div>
+        <div id="topUpChips">
+          <button class="topUpChip" data-amt="500">+R500</button>
+          <button class="topUpChip" data-amt="1000">+R1,000</button>
+          <button class="topUpChip" data-amt="2500">+R2,500</button>
+          <button class="topUpChip" data-amt="5000">+R5,000</button>
+        </div>
+        <div id="customTopUpRow">
+          <input id="customTopUpInput" type="number" min="1" placeholder="Custom amount" inputmode="numeric">
+          <button id="customTopUpBtn">Add</button>
+        </div>
+        <div id="topUpMethodNote">Topped up instantly from your default card •••• 4242.</div>
+      </div>
+      <div class="sec">
+        <div class="lab">Recent activity</div>
+        <div id="walletTxList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= PACKAGE BUILDER MODAL ================= -->
+  <div id="modalOverlay">
+    <div id="modal">
+      <button id="closeModal">✕</button>
+      <div class="handle"></div>
+      <div class="head">
+        <div class="heroWrap" id="mHeroWrap"></div>
+        <div class="name" id="mHotelName">—</div>
+        <div class="loc" id="mHotelLoc">—</div>
+      </div>
+
+      <div class="sec">
+        <div class="lab">Nights</div>
+        <div class="row">
+          <div class="l">Length of stay</div>
+          <div class="stepper">
+            <button id="nightsMinus">–</button>
+            <div class="n" id="nightsVal">3</div>
+            <button id="nightsPlus">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="lab">Flight · from your city</div>
+        <div id="flightOptions"></div>
+        <button class="shuffleBtn" id="shuffleFlights">↻ Show more flight options</button>
+      </div>
+
+      <div class="sec">
+        <div class="lab">Transfers</div>
+        <div class="row"><div class="l">Home → Departure airport</div><div class="r" id="t1p">—</div></div>
+        <div class="row"><div class="l">Arrival airport → Hotel</div><div class="r" id="t2p">—</div></div>
+        <div class="row"><div class="l">Hotel → Departure airport (return)</div><div class="r" id="t3p">—</div></div>
+      </div>
+
+      <div class="sec">
+        <div class="lab">Booking for</div>
+        <div class="row">
+          <div class="l">Lead guest</div>
+        </div>
+        <input id="travellerInput" type="text" placeholder="You" autocomplete="off"
+          style="width:100%;background:#faf6ff;border:1.5px solid #eee;border-radius:12px;padding:10px 12px;font-size:13.5px;font-family:inherit;color:var(--ink);">
+        <div class="sub" style="margin-top:6px;">Booking on your account — leave blank if you're the traveller, or add someone else's name.</div>
+      </div>
+
+      <div class="sec">
+        <div class="lab">Payment method</div>
+        <div class="legOption sel" id="payWalletOpt">
+          <div><div class="t1">Travel Wallet</div><div class="t2" id="walletBalanceLine">—</div></div>
+          <div class="p">●</div>
+        </div>
+        <div class="legOption" id="payCardOpt">
+          <div><div class="t1">Credit / Debit Card</div><div class="t2">Pay the full amount by card</div></div>
+          <div class="p">○</div>
+        </div>
+        <div class="sub" id="paySplitNote" style="margin-top:4px;"></div>
+      </div>
+
+      <div id="totalBar">
+        <div class="tot">
+          <div class="lab">TOTAL · FLIGHT + STAY + TRANSFERS</div>
+          <div class="amt" id="totalAmt">R 0</div>
+        </div>
+        <button id="bookBtn">Book with Graba</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= CONFIRMATION ================= -->
+  <div id="confirmOverlay">
+    <div class="tick">✓</div>
+    <h2>Trip booked</h2>
+    <p>Your flight, hotel and both transfers are confirmed as one Graba order. Tickets and vouchers are saved to your Travel Wallet.</p>
+    <div class="ref">
+      <div class="r"><span>Booking ref</span><span id="cRef">—</span></div>
+      <div class="r"><span>Destination</span><span id="cDest">—</span></div>
+      <div class="r"><span>Traveller</span><span id="cTraveller">—</span></div>
+      <div class="r"><span>Flight</span><span id="cFlight">—</span></div>
+      <div class="r"><span>Hotel</span><span id="cHotel">—</span></div>
+      <div class="r"><span>Nights</span><span id="cNights">—</span></div>
+      <div class="r"><span>Transfers</span><span id="cTransfers">—</span></div>
+      <div class="r"><span>Paid with</span><span id="cPayment">—</span></div>
+      <div class="r total"><span>Total paid</span><span id="cTotal">—</span></div>
+    </div>
+    <div id="suggestUpsell">
+      <div class="t">Plan suggests</div>
+      <div style="font-size:12.5px;color:var(--bg);">This trip doesn't include travel insurance yet — add cover for medical, cancellation and lost luggage.</div>
+      <button id="addInsuranceBtn">+ Add travel insurance · R150</button>
+    </div>
+    <button id="doneBtn">Back to globe</button>
+    <button id="viewTripsBtn">View in My Trips →</button>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* ============================================================
+   DATA — mock destination / hotel / flight inventory.
+   Structured so real GDS + Google Business Profile feeds can
+   replace these arrays without touching the UI logic.
+============================================================ */
+const DESTINATIONS = {
+  "zanzibar": {city:"Zanzibar", country:"Tanzania", lat:-6.1659, lon:39.2026, code:"ZNZ",
+    areas:["Stone Town","Nungwi","Paje","Kendwa","Jambiani","Michamvi"]},
+  "dubai": {city:"Dubai", country:"UAE", lat:25.2048, lon:55.2708, code:"DXB",
+    areas:["Downtown","Jumeirah","Dubai Marina","Deira","Business Bay","Al Barsha"]},
+  "maldives": {city:"Malé, Maldives", country:"Maldives", lat:3.2028, lon:73.2207, code:"MLE",
+    areas:["Malé","Hulhumalé","North Malé Atoll","South Ari Atoll","Baa Atoll"]},
+  "cape town": {city:"Cape Town", country:"South Africa", lat:-33.9249, lon:18.4241, code:"CPT",
+    areas:["City Bowl","Camps Bay","Sea Point","V&A Waterfront","Constantia","Woodstock"]},
+  "johannesburg": {city:"Johannesburg", country:"South Africa", lat:-26.2041, lon:28.0473, code:"JNB",
+    areas:["Sandton","Rosebank","Melville","Fourways","Midrand","Maboneng"]},
+  "durban": {city:"Durban", country:"South Africa", lat:-29.8587, lon:31.0218, code:"DUR",
+    areas:["Umhlanga","Berea","Morningside","North Beach","Glenwood"]},
+  "london": {city:"London", country:"United Kingdom", lat:51.5072, lon:-0.1276, code:"LHR",
+    areas:["Westminster","Shoreditch","Kensington","Camden","Greenwich","Soho"]},
+  "paris": {city:"Paris", country:"France", lat:48.8566, lon:2.3522, code:"CDG",
+    areas:["Le Marais","Montmartre","Saint-Germain","Champs-Élysées","Bastille"]},
+  "new york": {city:"New York", country:"USA", lat:40.7128, lon:-74.0060, code:"JFK",
+    areas:["Manhattan","Brooklyn","Queens","SoHo","Williamsburg"]},
+  "mauritius": {city:"Port Louis, Mauritius", country:"Mauritius", lat:-20.1609, lon:57.5012, code:"MRU",
+    areas:["Grand Baie","Flic en Flac","Port Louis","Belle Mare","Tamarin"]}
+};
+
+const AIRLINES = ["Rockit Air","SA Skyways","Meridian Airways","Coastal Jet","Vantage Air"];
+const DRIVERS = ["Sunny Grey","Micheal Andrews","Pretty Moloi","David Bloom","Thabo N.","Lerato K."];
+
+function rand(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
+function pick(arr){return arr[Math.floor(Math.random()*arr.length)];}
+
+/* ============================================================
+   Self-contained "photo" illustrations for hotel cards.
+   Drawn as inline SVG (sky gradient + sun + skyline/waves/palms) so
+   nothing ever depends on an external image loading.
+============================================================ */
+const SCENES = ['beach','sunset','city','desert','garden'];
+const SCENE_SKY = {
+  beach:  ['#8fd3f4','#e8fbff'],
+  sunset: ['#3a1c5c','#e0834f'],
+  city:   ['#2b1055','#7b5ea7'],
+  desert: ['#e79a4d','#fbe3a1'],
+  garden: ['#2f6b4f','#a8e6b0']
+};
+
+function buildSceneSVG(scene,uid){
+  const [c1,c2]=SCENE_SKY[scene]||SCENE_SKY.beach;
+  let shapes='';
+  const sunX=scene==='city'?300:70, sunY=scene==='city'?40:38;
+  shapes+=`<circle cx="${sunX}" cy="${sunY}" r="16" fill="#fff5d6" opacity="0.9"/>`;
+  if(scene==='beach'){
+    shapes+=`<path d="M0,78 Q40,68 80,78 T160,78 T240,78 T320,78 T400,78 V120 H0 Z" fill="#1c7fa8" opacity="0.85"/>`;
+    shapes+=`<path d="M0,90 Q40,82 80,90 T160,90 T240,90 T320,90 T400,90 V120 H0 Z" fill="#0f5f82"/>`;
+    shapes+=`<rect x="30" y="45" width="4" height="30" fill="#3a2a1a"/><ellipse cx="32" cy="42" rx="16" ry="7" fill="#1f7a3d"/>`;
+  } else if(scene==='sunset'){
+    shapes+=`<polygon points="0,90 60,55 110,90" fill="#2a1440" opacity="0.9"/>`;
+    shapes+=`<polygon points="90,90 150,45 210,90" fill="#3a1c52" opacity="0.9"/>`;
+    shapes+=`<rect x="0" y="88" width="400" height="32" fill="#180a2b"/>`;
+  } else if(scene==='city'){
+    for(let i=0;i<7;i++){
+      const bw=22+((i*13)%20), bx=i*56, bh=30+((i*37)%45);
+      shapes+=`<rect x="${bx}" y="${100-bh}" width="${bw}" height="${bh}" fill="#1c1236" opacity="0.85"/>`;
+    }
+    shapes+=`<rect x="0" y="98" width="400" height="22" fill="#120a28"/>`;
+  } else if(scene==='desert'){
+    shapes+=`<path d="M0,95 Q80,70 160,95 T400,95 V120 H0 Z" fill="#c97a3a" opacity="0.9"/>`;
+    shapes+=`<path d="M0,105 Q100,85 220,105 T400,100 V120 H0 Z" fill="#a85f2c"/>`;
+  } else { // garden
+    shapes+=`<path d="M0,100 Q60,80 120,100 T240,100 T400,95 V120 H0 Z" fill="#1f5c3d" opacity="0.9"/>`;
+    shapes+=`<ellipse cx="60" cy="80" rx="14" ry="20" fill="#245c33"/>`;
+    shapes+=`<ellipse cx="330" cy="75" rx="16" ry="22" fill="#1f5230"/>`;
+  }
+  return `<svg viewBox="0 0 400 120" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="sky${uid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/>
+    </linearGradient></defs>
+    <rect width="400" height="120" fill="url(#sky${uid})"/>
+    ${shapes}
+  </svg>`;
+}
+
+const GRADIENT_PAIRS=[['#571f84','#bc77ff'],['#0f4c81','#5aa9d6'],['#8a4b08','#e0a458'],
+  ['#0d5c46','#4fb591'],['#7a1f3d','#d6577f'],['#2d3561','#6c7fd6']];
+const PROPERTY_TYPES=["Hotel","Resort","Boutique Guesthouse","Villa","Lodge","Serviced Apartment","B&B"];
+const NAME_PREFIXES=["Baraza","Sea Cliff","Azure","Coral Cove","Marula","Afrique","Idwala","Three Rivers",
+  "Palm Bay","Horizon","Bluewater","The Dunes","Kaya","Sundowner","Lantern","Windward","Cascade","Amber","Tidal","Baobab"];
+const NAME_SUFFIXES=["Resort & Spa","Boutique Hotel","Villas","Lodge","Suites","Guesthouse","Retreat","House","Residences","Inn"];
+function genHotelName(){ return `${pick(NAME_PREFIXES)} ${pick(NAME_SUFFIXES)}`; }
+
+const SCENE_KEYWORDS={beach:'beach,resort', sunset:'sunset,coast', city:'city,hotel', desert:'desert,resort', garden:'tropical,garden'};
+function seedNum(str){
+  let h=0;
+  for(let i=0;i<str.length;i++) h=(h*31+str.charCodeAt(i))>>>0;
+  return h%8000;
+}
+// Real photographs (not illustrations) for hotel cards / pins / modal hero.
+// LoremFlickr gives an actual themed photo; if it's ever slow/unreachable we
+// fall back to a Picsum photo seeded the same way, so a real photo still loads.
+function photoTag(h, w, hpx){
+  const kw=SCENE_KEYWORDS[h.scene]||'hotel';
+  const lock=seedNum(h.id);
+  const fallback=`https://picsum.photos/seed/${encodeURIComponent(h.id)}/${w}/${hpx}`;
+  return `<img src="https://loremflickr.com/${w}/${hpx}/${encodeURIComponent(kw)}?lock=${lock}" loading="lazy" alt="${h.name}"
+    onerror="this.onerror=null;this.src='${fallback}';">`;
+}
+
+let hotelSeq=0;
+function genHotels(destKey,count){
+  const dest=DESTINATIONS[destKey];
+  const list=[];
+  for(let i=0;i<count;i++){
+    const scene=SCENES[i%SCENES.length];
+    const x=rand(12,88), y=rand(18,82);
+    // Percentage-space x/y still drives the internal search-radius simulation (hotelDist);
+    // lat/lon derived from it place the pin at a real-ish spot on the actual map.
+    const lat=dest.lat - ((y-50)/50)*0.045;
+    const lon=dest.lon + ((x-50)/50)*0.06;
+    list.push({
+      id:destKey+"-h"+(++hotelSeq),
+      name:genHotelName(),
+      type:PROPERTY_TYPES[i%PROPERTY_TYPES.length],
+      rooms:rand(1,9),
+      pricePerNight:rand(950,4200),
+      scene:scene,
+      x, y, lat, lon,
+      rating:(rand(28,50)/10),
+      supplierPriority:rand(1,5),
+      profitPct:rand(3,22)/100
+    });
+  }
+  return list;
+}
+function genFlights(){
+  const list=[];
+  for(let i=0;i<4;i++){
+    list.push({
+      airline:pick(AIRLINES),
+      time:`${String(rand(5,22)).padStart(2,'0')}:${pick(['00','15','30','45'])}`,
+      duration:`${rand(1,9)}h ${pick(['00','15','30','45'])}m`,
+      stops: rand(0,10)>7?"1 stop":"Non-stop",
+      price: rand(1800,7600)
+    });
+  }
+  return list.sort((a,b)=>a.price-b.price);
+}
+
+/* ============================================================
+   REAL EARTH GLOBE — pure Canvas 2D, zero external scripts/images.
+   Continents are simplified coastline polygons rasterised once
+   into an equirectangular land/sea bitmap; each frame that
+   bitmap is re-projected per-pixel onto a shaded, rotating
+   sphere (solid continents, not a dot pattern).
+============================================================ */
+const MASK_W=720, MASK_H=360;
+// Real Natural Earth 1:110m coastline data, rasterised to a 0.5-degree land/sea
+// bitmap and bit-packed as base64 (see build notes). 1 bit per cell, row-major,
+// row 0 = north pole (lat +90), column 0 = lon -180.
+const LAND_MASK_B64="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH//////gAAAAD////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB////////gAAB8P/////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH///////+Af////////////8A/4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA///////+A/////////////3//+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf8P//////g////////////////+AAAAAAAAAAAAAAAAAAAAHvAAAAAAAAAAAAAB/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//+AP///8H///////////////+AAAAAAAAAAAB//+AAAAAAHwAAAAAAAAAAAAAD//AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA///f////AAf//////////////+AAAAAAAAAD4/D/+AAAAAAAAAAAAAAAAAAAAAA//wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgAAB//z//8AAD///////////////8AAAAAAAAAD//8AAAAAAAAAAAAAAAAAAAAAAAAP/xwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgAf4eD/8///8AH////////////////4AAAAAAAAAB//8AAAAAAAAAAAAAAAAAAAAAAAAAAH/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB8fgHA///8D/////////////////4AAAAAAAAAAf/w8AAAAAAAAAAAAAAAAAAAAAAAAAP8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfwAAAB8ADn//AAf////////////////4AAAAAAAAAAB/A/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/gAAAAAAAAD//4AAB////////////////8AAAAAAAAAAD+AAAAAAAAAAAAAAAAAAAAAAAAAAAA/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/gAEAAAD/4f///AAH////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAA+AAAAAAAAAAD/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfwPgPAB/4B8AAAwAAA////////////////gAAAAAAAAAAAAAAAAAAAAAAAAAAP/8AAAAAAAAAD////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+H8B/4A/gAcAAAAAAAf////////////4AAAAAAAAAAAAAAAAAAAAAAAAAH/4AAAAAAAAB///////AAAAAAAB//AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB///8APx8f///wAAAAAAH////////////4AAAAAAAAAAAAAAAAAAAAAAAAB/4AAAAAAAAH///////+AAAAAAAD//z8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfgAAAA8H///wAAAAAAB////////////wAAAAAAAAAAAAAAAAAAAAAAAAD/AAAAAAAAB////////gAAAAAAAAcAAHAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/AAAAAAAAAAAAAAAAAAAAA////////////AAAAAAAAAAAAAAAAAAAAAAAAAP4AAAAAAAAB///////4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//wAAAAEAf+AQAQAAAAAAAP///////////gAAAAAAAAAAAAAAAAAAAAAAAB/gAAAAAAAf/////////8AAAAAAAAA4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH//kAAHgf4/4Pj+fwAAAAAAH//////////gAAAAAAAAAAAAAAAAAAAAAAAAB/AAAAAAAB////////////8A/8AAAAeAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/5+8Y+B38/A/3/gAAAAAAAD//////////4AAAAAAAAAAAAAAAAAAAAAAAAH8AAAA/hgB////////////////AAADwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf/n//+/Af+cA///n+AAAAAAD/////////+AAAAAAAAAAAAAAAAAAAAAAAAAH4AAAA/wh8////////////////AAAH//8AAAAAAAAAAAAAAAAAAAAAAAAAAAAf+P//+/AD+cA/////wAAAAAH//////////4AAAAAAAAAAAAAAAAAAAAAAAAf4AAAD/Dv/////////////////AgAH///AAAAAAAAAA+AAAAAADAAAAAAAAAAB8Af///gAB/A//////gAAAAAP/////////////////////////////////gD+AAAP/H3/////////////////h//////4AAAAAAAAAAAAAAAB/7wAAAAAAAAAAD////4AB/wf/////8AAAABz////////88AAAAAAAAAAAAAAA//AAAAAAAA/gAAf/j////////////////////////////AAAAAAAAAAAAA////8AAAAAAMAAAAf///AB/4A//////wAAAB/////////gAAAAAAAAAAAAAAAD//gAAAAAAAAAAAP/z////////////////////////////wAAAAAAAAAAAD//////+AAA/+I4A/////w8fgAHhAf//4AAAB+/////////gAAAAAAAAAAAAAP///2AAAAAAAAAYAP/n////////////////////////////gAAD/+AAAAAAH///////+D/////wL///+B/H+AH+AH//8AAAAA////////8AAAAAAAAAAAAAA/////4AAAAAAP/gD8AcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAeAAAf////////////////////////////////////////////////////////////////8AAAAAAH////+f7wAfAPAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAB////////////////////////////////////////////////////////////////gAAAAAAA/8P/BwAAACAGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//////////////////////////////////////////////////////////////+AAAAAAAAH8DwAAAAAAAPAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//////////////////////////////////////////////////////////////8AAAAAAAAD8fAAAAAAAAcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACB/////////////////////////////////////////////////////////////4AAAAAAAAD+MAAAAAAAA8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf////////////////////////////////////////////////////////////wAAAAAAPwOEAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAAf////////////////////////////////////////////////////////////AAAHgAAD/4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfwH////////////////////////////////////////////////////////////+AAAf4AAD/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD4AH/v///////////////////////+P4B////AAAAD///4AAAAAf//gAAAAAAAD///gf//8eH/////////////////////////////////////////////+AAAAAAP///////////////////////8f+AgH//wAAAD///4AAAAAD/+AAAAAAAAP///B///+P//////////////////////////////////////////////wAAAAAAP//////////////////////+A/HwAA//wAAAB///wAAAAAA/gAAAAAAAA///8H///////////////////////////////////////////////////4AAAeAB///////////////////////+AEAAAA/z4AAAA///gAAAAAAAAAAAAAAAD///wf///////////////////////////////////////////////////8AAAAA////////////////////////wAAcAAAH8QAAAAf/+AAAAAAAAAAAAAAAAf///A////////////////////////////////////////////////////+AAAAB////////////////////////AAAwI+YAeAAAAAP/+AAAAAAAAAAAAAAAB///+Af//////////////////////////////////////////////x///+AAAAAD///////////////////////+AAAAI//AAAAAAAH/+AAAAAAAAAAAAAAAD///+Af/////////////////////////////////////////////fj///gAAAAAB///////////////////////8AAAAA//gAAAAAAD/8AAAAAAAAAAAAAAAD///8Af////////////////////////////////////////////gfH//8AAAAAAB////38f////////////////4AAAAA//+AAAAAAAD8AAAAAAAAAAAAAAAD///+Af///////////////////////////////////////////+AIP//gAAAAAAOf///n8D////////////////4AAAAAf/+AAAAAAAA4AAAAAAAAAAAAAAAD////gH4H/////////////////////////////////////////8AB//GAAAAAAAAA///PgAA///////////////4AAAAAf/+AcAAAAAAAAAAAAAAAAAAAAAAB////gAAH/////////////////////////////////////////wAD5AAAAAAAAAAA//8EAAAH//////////////4AAAAA//+A+AAAAAAAAAAAAAAAAAAAAAAB/3//AB////////////////////////////////////////g8H8APwAAAAAAAAAAAx7+AAAAB///////////////AAAAB///g/AAAAAAAAAAAAAAAAAAAAAAB/D/8AB///////////////////////////////////////gAAAAAfgAAAAAAAAAAAAH8AAAAAP//////////////AAAAAf////gAAAAAAAAAAAAAAAAAAeAAAcB/4AAf//////////////////////////////////////AAAAAB/AAAAAAAAAAAAAHjgAAAAAP/////////////gAAAAP////wAAAAAAAAAAAAAAAAAA8AAAAB/4AAf/////////////////////////////////////8AAAAAP/gAAAAAAAAAAAAeHAAAAAAH/////////////iAAAAH////4AAAAAAAAAAAAAAAAAA/wAAAY/4Ac//////////////////////////////////////wAAAAAf/wAAAAAAAAAAAB4AAAAAAAD//////////////wAAAH////4AAAAAAAAAAAAAAAAAA/gAAD4f4A///////////////////////////////////////gAAAAA//wAAAAAAAAAAAHgAAAAAAAA//////////////+AAAP////4AAAAAAAAAAAAAAAAAAfAAAD8fwA//////////////////////////////////////+AAAAAB//wAAAAAAAAAAA/AAAAAAAAA///////////////wAAP////+AAAAAAAAAAAAAAAAAAfwAADzuAA//////////////////////////////////////8AAAAAB//AAAAAAAAAAADgAAAAAAAAAf///////////////gA//////gAAAAAAAAAAAAAAAAAP4AABxgAAf/////////////////////////////////////wAAAAAB/+AAAAAAAAAAAcAAAAAAAAAAH///////////////4H//////+AAAAAAAAAAAAAAAAPH8AABwADD//////////////////////////////////////AAAAAAB//AAAAAAAAAAAAAAAAAAAAAAH///////////////4H///////AAAAAAAAAAAAAAAA/A+AAB8wf///////////////////////////////////////8AAAAAB/4AAAAAAAAAAAAAAAAAAAAADB///////////////4D///////AAAAAAAAAAAAAAAB/A/AAB///////////////////////////////////////////+EAAAA/wAAAAAAAAAAAAAAAAAAAAADA///////////////8D///////wAAAAAAAAAAAAAAB/H/AD/////////////////////////////////////////////cAAAA/wAAAAAAAAAAAAAAAAAAAAABA///////////////8B///////4AAAAAAAAAAAAAAB+H/4H/////////////////////////////////////////////+AAAA+AAAAAAAAAAAAAAAAAAAAAAAAP//////////////+D///////4AAAAAAAAAAAAAAB8H/4P/////////////////////////////////////////////8AAAAeAAAAAAAAAAAAAAAAAAAAAAAAP///////////////D///////gAAAAAAAAAAAAAABgP/wP/////////////////////////////////////////////cAAAAcAAAAAAAAAAAAAAAAAAAAAAAAH//////////////////////84AAAAAAAAAAAAAAAAD/4/////////////////////////////////////////////+OAAAAQAAAAAAAAAAAAAAAAAAAAAAAAD//////////////////////hwAAAAAAAAAAAAAAAAP8H/////////////////////////////////////////////+OAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////////////////////B/BgAAAAAAAAAAAAAAAAaAH/////////////////////////////////////////////+PAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD3//////////////////8HAD4AAAAAAAAAAAAAAAAAA//////////////////////////////////////////////+PAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA5//////////////////wAwH/gAAAAAAAAAAAAAAAAP//////////////////////////////////////////////+NgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAef/////////////////H8AP/gAAAAAAAAAAAAAAADn//////////////////////////////////////////////8MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEf////////////////+fwAP/wAAAAAAAAAAAAAAAH///////////////////////////////////////////////8IAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHf////////////////9/wAf/wAAAAAAAAAAAAAAAB///////////////////////////////////////////////4IAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////////////7/wAAEwAAAAAAAAAAAAAAAAf//////////////////////////////////////////////wMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///////////////////8AAAwAAAAAAAAAAAAAAAAP////////////z///+D////////////////////////////gOAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///////////////////5yAAAAAAAAAAAAAAAAAAAH//////////h8D///wD////////////////////////////AIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////////////////AAAAAAAAAAAAAAAAAAAD//////////AcH///gD///////////////////////////+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///////////////////H8AAAAAAAAAAAAAAAAAAAH////n////+B////+Af///////////////////////////8AIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//////////////////8fAAAAAAAAAAAAAAAAAAAAH////g////8AcH//8Af///////////////////////////4AcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//////////////////g4AAAAAAAAAAAAAAAAAAAAH//+/g////4AAB//8B////////////////////////////wAeIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////////////8AwAAAAAAAAAAAAAAAAAAAAH//8Hwf///4AAAf/+A////////////////////////////gAf4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/////////////////4AAAAAAAAAAAAAAAAAAAA////xgH4D///wAAAP/+Af//////////////////////////eAB/4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/////////////////wAAAAAAAAAAAAAAAAAAAA////AAn8A///wAAAB/+AH/////////////////////////+AAD/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/////////////////wAAAAAAAAAAAAAAAAAAAA////ABh+AP//wAAAB//AH/////////////////////////8AADmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////////////8AAAAAAAAAAAAAAAAAAAA////ABg/wH//wB/AB//gE/////////////////////////wAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD////////////////+AAAAAAAAAAAAAAAAAAAAA///8AAAP4H//8H/wD//wAf////////////////////////gAABgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH////////////////8AAAAAAAAAAAAAAAAAAAAA///gADgD+H/Dj//////4C//////////////////////z//gAADgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH////////////////wAAAAAAAAAAAAAAAAAAAAA///AABwA4n7g///////+D//////////////////////D/+AAADwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD////////////////wAAAAAAAAAAAAAAAAAAAAA///AABgAYD8B///////4B/////////////////////+Hn4AAADwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///////////////+gAAAAAAAAAAAAAAAAAAAAB///AABgAMB+B///////4D/////////////////////8GB4AAADwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB////////////////AAAAAAAAAAAAAAAAAAAAAB///AAAAAIB8B///////wA/////////////////////gAD8AAAHgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA///////////////7AAAAAAAAAAAAAAAAAAAAAA//+AAAAAYA/B///////wA/////////////////////wAD+AAAHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//////////////6AAAAAAAAAAAAAAAAAAAAAA//+AAAAfgAdA///////wA/////////////////////8QA/AAAfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//////////////4AAAAAAAAAAAAAAAAAAAAAA//4AAAwHgAcAf//////+A/////////////////////++AfgAE/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//////////////8AAAAAAAAAAAAAAAAAAAAAAB/wA9/8AAAMAf/7/////3//////////////////////4A/gAH/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//////////////8AAAAAAAAAAAAAAAAAAAAAAAwAf//4AAAAABhw////////////////////////////wAfgAP+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH//////////////8AAAAAAAAAAAAAAAAAAAAAAAwD///8AAAAAAAA////////////////////////////AAfgAP+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//////////////8AAAAAAAAAAAAAAAAAAAAAAA/P///8AAAB+AAw///////////////////////////+AAfAf/+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//////////////4AAAAAAAAAAAAAAAAAAAAAAB/////4AAAAAABg///////////////////////////+AAcA//wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf/////////////gAAAAAAAAAAAAAAAAAAAAAAD/////wAAAAAAAB////////////////////////////gAADy8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH////////////+AAAAAAAAAAAAAAAAAAAAAAAH/////8AAAAAAAB////////////////////////////gAAEeQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB////////////8AAAAAAAAAAAAAAAAAAAAAAAf/////8AAAAAAAD////////////////////////////gAAfYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////////////wAAAAAAAAAAAAAAAAAAAAAAA///////4AAwAAAD////////////////////////////wAAfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////////////gAAAAAAAAAAAAAAAAAAAAAAB////////gD8AAAD////////////////////////////4AAGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9///////////AAAAAAAAAAAAAAAAAAAAAAAB////////gD/wAAH////////////////////////////8AAGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAcf/////////+AAAAAAAAAAAAAAAAAAAAAAAD////////4D//g8H////////////////////////////8AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOP/////////+AAAAAAAAAAAAAAAAAAAAAAAB/////////D/////////////////////////////////4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOP///////gP+AAAAAAAAAAAAAAAAAAAAAAAB///////////////////////////////////////////4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGH/////+/gEfAAAAAAAAAAAAAAAAAAAAAAAB///////////////////B///////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADH/////wDAAPAAAAAAAAAAAAAAAAAAAAAAAD//////////////7////B///////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABj/////gAAAPgAAAAAAAAAAAAAAAAAAAAAAP/////////////+7////g///////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAx////+AAAAHgAAAAAAAAAAAAAAAAAAAAAAf//////////////f////gf//////////////////////4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD4f///8AAAAPgAAAAAAAAAAAAAAAAAAAAAD///////////////h////wP//////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB4f///4AAAAHwAAAAAAAAAAAAAAAAAAAAAH///////////////h////4D//////////////////////gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAeP///4AAAAHzAAAAAAAAAAAAAAAAAAAAAH///////////////w////8B4/////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGH///4AAAADwQAAAAAAAAAAAAAAAAAAAAf///////////////wf///8AC/////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACH///8AAAABwAAAAAAAAAAAAAAAAAAAAAf///////////////4f///8gCf///////////////////+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADB///4AAAAAgAAAAAAAAAAAAAAAAAAAAA////////////////4P///+gOAf4f////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADg///4AAAAABgAAAAAAAAAAAAAAAAAAAA////////////////8P////geAAAP////////////////8MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwf//4AAAAAAgAAAAAAAAAAAAAAAAAAAB////////////////+H////w/AAAH////////////////wYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYP//4AAAAAAgAAAAAAAAAAAAAAAAAAAD////////////////+B//////wAAD////////////////g4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIH//wAAAAAAAAAAAAAAAAAAAAAAAAAAD////////////////+B//////8AAA///////////////+A4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//wAAAA/4AAAAAAAAAAAAAAAAAAAAH/////////////////A//////+AAAf//////n///////4AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//wAAABj/AAAAAAAAAAAAAAAAAAAAH/////////////////g///////AAAf//////j//////+AAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//4AAAAAPgAAAAAAAAAAAAAAAAAAAP/////////////////w//////+AAAf/////8D//////4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//4AAfAAB4AAAAAAAAAAAAAAAAAAAP/////////////////w//////8AAAP/////AD////+CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAB//8AB/AAA+AAAAAAAAAAAAAAAAAAAP/////////////////wf/////4AAAAP////AB////8GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//8AB+AAAfwAAAAAAAAAAAAAAAAAAH/////////////////wP/////wAAAAP///+AB////4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAAB//+AB+AAAAHYAAAAAAAAAAAAAAAAAH/////////////////wH/////gAAAAP///4AAf///wPAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAAA///AD+AAAAD/AAAAAAAAAAAAAAAAAH/////////////////4D/////wAAAAP///wAAf///geAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//gP+AAAAB/gAAAAAAAAAAAAAAAAD/////////////////4D/////AAAAAP///gAAP///weAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH//7/8AAB4f0jgAAAAAAAAAAAAAAAD/////////////////8B////+AAAAAP///AAAH///wAAAAeAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////8AAAQAAAAAAAAAAAAAAAAAAAD/////////////////+A////4AAAAAP//+AAAH///4AAAAcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP///4AAAAAAAAAAAAAAAAAAAAAAAH//////////////////Af///4AAAAAH//4AAAH///8AAAAeAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///4AAAAAAAAAAAAAAAAAAAAAAAH//////////////////Af//+AAAAAAH//wAAAH3//+AAAAeAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//4AAAAAAAAAAAAAAAAAAAAAAAH//////////////////AP//4AAAAAAH//gAAAPH///AAAAcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADB/7/AAAAAAAAAAAAAAAAAAAAAAH//////////////////gf//wAAAAAAH/+AAAACH///gAAA4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA///gAAAAAAAAAAAAAAAAAAAAAP//////////////////wP//gAAAAAAD/8AAAAAH///wAAA4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//gAAAAAAAAAAAAAAAAAAAAAf//////////////////8P/4AAAAAAAB/8AAAAAD///wAAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//wAAAAAAAAAAAAAAAAAAAAAP//////////////////+P/wAAAAAAAB/8AAAAAD///wAAAdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//gAAAAAAAAAAAAAAAAAAAAAP///////////////////H+AAAAAAAAB/8AAAAAD///4AAAPwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAN/gAAAAAAAAAAAAAAAAAAAAAP///////////////////vgAAAAAAAAA/+AAAAABz//4AAAYwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/gAAAAAAAAAAAAAAAAAAAAAP///////////////////3AAAAAAAAAA/8AAAAABz//4AAAIQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/gAAAgAAAAAAAAAAAAAAAAAH///////////////////4AAAAAAAAAA/8AAAAABwf/wAAAIGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfgAABmAAAAAAAAAAAAAAAAAH///////////////////wABAAAAAAAAf8AAAAABwP/wAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPAAAPHgAAAAAAAAAAAAAAAAB///////////////////4A/AAAAAAAAP8AAAAABgP/gAAADGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHgAB//wAEAAAAAAAAAAAAAAA///////////////////8P/AAAAAAAAP8AAAAABgH/AAACCwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPgAB/f/nsAAAAAAAAAAAAAAAf/////////////////////AAAAAAAAP4AAAAABgB8AAACAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAF4AB/P//4AAAAAAAAAAAAAAAP////////////////////+AAAAAAAAHwAAAAABAA4AAAEBgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8PD/P//8AAAAAAAAAAAAAAAH////////////////////+AAAAAAAAHzAAAAABAAwAAAIABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf5n////+AAAAAAAAAAAAAAAD////////////////////+AAAAAAAAHDAAAAADwAgAAAAAHgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHg//////gAAAAAAAAAAAAAAD////////////////////8AAAAAAAABHgAAAAD4AAAAAAA/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABx//////wAAAAAAAAAAAAAAD////////////////////8AAAAAAAAADgAAAAA4AAAAAAD/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAg//////4AAAAAAAAAAAAAAB////////////////////4AAAAAAAAADgAAAAAYAAAAAACPgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf/////8AAAAAAAAAAAAAAAf///////////////////4AAAAAAAAADgAAAAAOAAAABgAOgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf/////+AAAAAAAAAAAAAAAP///+H//////////////wAAAAAAAAADgAAAAAPAAAABgAOAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf///////AAAAAAAAAAAAAAD///gD//////////////wAAAAAAAAAAAAAAAAHgAAAD4ACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf///////4AAAAAAAAAAAAAB//+AD//////////////gAAAAAAAAAAAAAAB4PwAAAP8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf///////8AAAAAAAAAAAAAA+AAAB//////////////AAAAAAAAAAAAAAAB8H4AAAf4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf///////+AAAAAAAAAAAAAAAAAAAA/////////////AAAAAAAAAAAAAAAA+H4AAA/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////////AAAAAAAAAAAAAAAAAAAAf///////////+AAAAAAAAAAAAAAAAfD4AAB/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf////////AAAAAAAAAAAAAAAAAAAAf///////////8AAAAAAAAAAAAAAAAPh4AAD/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/////////AAAAAAAAAAAAAAAAAAAAf///////////4AAAAAAAAAAAAAAAAHx4AAf/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/////////gAAAAAAAAAAAAAAAAAAAf///////////wAAAAAAAAAAAAAAAAD48AAf/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/////////wAAAAAAAAAAAAAAAAAAAf///////////AAAAAAAAAAAAAAAAAB/MAE//wAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////wAAAAAAAAAAAAAAAAAAAf//////////+AAAAAAAAAAAAAAAAAA/kAP//4AEGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/////////wAAAAAAAAAAAAAAAAAAAf//////////4AAAAAAAAAAAAAAAAAA/wAP//w/4GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/////////gAAAAAAAAAAAAAAAAAAAf//////////wAAAAAAAAAAAAAAAAAA/4AP//ggAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf/////////+AAAAAAAAAAAAAAAAAAA///////////gAAAAAAAAAAAAAAAAAAf4AP//hAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf/////////+wAAAAAAAAAAAAAAAAAA///////////AAAAAAAAAAAAAAAAAAAP4AH//hhgCB8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA///////////+AAAAAAAAAAAAAAAAAA///////////AAAAAAAAAAAAAAAAAAAH+AH//B+AAD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////////////gAAAAAAAAAAAAAAAAA//////////+AAAAAAAAAAAAAAAAAAAH+AD/+B8AAA8BgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////////////gAAAAAAAAAAAAAAAAAf/////////8AAAAAAAAAAAAAAAAAAAD/AD/+D8AAAGH4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////////////AAAAAAAAAAAAAAAAAP/////////wAAAAAAAAAAAAAAAAAAAB/wD/+DsAAA+P/gAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////////////+AAAAAAAAAAAAAAAAH/////////wAAAAAAAAAAAAAAAAAAAA/wAN+DuAz4f//4AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf/////////////gAAAAAAAAAAAAAAAD/////////wAAAAAAAAAAAAAAAAAAAAfwAAcBuAQEL///AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//////////////wAAAAAAAAAAAAAAAB/////////gAAAAAAAAAAAAAAAAAAAAfwAAABnAAAA///wAHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//////////////4AAAAAAAAAAAAAAAB/////////AAAAAAAAAAAAAAAAAAAAAHwAAABlAAAAH//4AGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA///////////////gAAAAAAAAAAAAAAA/////////AAAAAAAAAAAAAAAAAAAAADwAAABhAAAAB//8AMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA///////////////wAAAAAAAAAAAAAAA/////////AAAAAAAAAAAAAAAAAAAAABwAAAAAAAAAA//+H4EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA///////////////wAAAAAAAAAAAAAAA/////////AAAAAAAAAAAAAAAAAAAAAAPAAAAAAAACAf//hgCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//////////////wAAAAAAAAAAAAAAAf////////gAAAAAAAAAAAAAAAAAAAAAfhwAAAAAACAf//AABQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH//////////////wAAAAAAAAAAAAAAAP////////gAAAAAAAAAAAAAAAAAAAAAH/8AAAAAAAAf//AAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH//////////////wAAAAAAAAAAAAAAAP////////AAAAAAAAAAAAAAAAAAAAAAAn/gAAAAAAA//vgAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//////////////wAAAAAAAAAAAAAAAP////////AAAAAAAAAAAAAAAAAAAAAAAAf4ABAAAABz+DwAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//////////////wAAAAAAAAAAAAAAAP////////gAAAAAAAAAAAAAAAAAAAAAAAAA88DwAAAB+B4AAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//////////////gAAAAAAAAAAAAAAAP////////gAAAAAAAAAAAAAAAAAAAAAAAAAAAOAAAAAEA+AAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//////////////gAAAAAAAAAAAAAAAP////////wAAAAAAAAAAAAAAAAAAAAAAAAABgcAAAAAAAfAAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//////////////AAAAAAAAAAAAAAAAH////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAHgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/////////////8AAAAAAAAAAAAAAAAH////////4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf////////////8AAAAAAAAAAAAAAAAH////////4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf////////////4AAAAAAAAAAAAAAAAH////////4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////////////wAAAAAAAAAAAAAAAAH////////4AAIAAAAAAAAAAAAAAAAAAAAAAAAAAC/8AMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////////////wAAAAAAAAAAAAAAAAP////////4AAIAAAAAAAAAAAAAAAAAAAAAAAAAAH/8AOAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH////////////gAAAAAAAAAAAAAAAAf////////4AAcAAAAAAAAAAAAAAAAAAAAAAAAAAH/4AeAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH////////////AAAAAAAAAAAAAAAAAf////////4AAcAAAAAAAAAAAAAAAAAAAAAAAAAAP/wAeAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD////////////AAAAAAAAAAAAAAAAA/////////4AA8AAAAAAAAAAAAAAAAAAAAAAAAB8f/wAfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD////////////AAAAAAAAAAAAAAAAA/////////8AB8AAAAAAAAAAAAAAAAAAAAAAAAD8f/gAfwAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB////////////AAAAAAAAAAAAAAAAA/////////4AD+AAAAAAAAAAAAAAAAAAAAAAAAH///wAf4AAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf///////////AAAAAAAAAAAAAAAAA/////////4AH6AAAAAAAAAAAAAAAAAAAAAAAAH///8Af4AAAAAAAAAAA/////////////////////////////////////////////////////////////////////////wB/8AAAAAAAAAAAAAAAAAAAAAAAAX///+Af4AAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB///////////AAAAAAAAAAAAAAAAB/////////gB/8AAAAAAAAAAAAAAAAAD////////////////////////4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//////////AAAAAAAAAAAAAAAAB////////8AD/4AAAAAAAAAAAAAAAAAAAAAAAB/////w/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//////////AAAAAAAAAAAAAAAAA////////wAD/4AAAAAAAAAAAAAAAAAAAAAAAB///////8AAAAAAAAAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/////////+AAAAAAAAAAAAAAAAA////////gAD/4AAAAAAAAAAAAAAAAAAAAAAAD///////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/////////+AAAAAAAAAAAAAAAAAf///////AAD/wAAAAAAAAAAAAAAAAAAAAAAAH///////+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////+AAAAAAAAAAAAAAAAAf//////+AAB/wAAAAAAAAAAAAAAAAAAAAAAAH////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////8AAAAAAAAAAAAAAAAAP//////8AAB/wAAAAAAAAAAAAAAAAAAAAAAAf////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////4AAAAAAAAAAAAAAAAAP//////4AAB/gAAAAAAAAAAAAAAAAAAAAAAD/////////4AAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////4AAAAAAAAAAAAAAAAAH//////8AAD/gAAAAAAAAAAAAAAAAAAAAAB//////////8AAAABgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////wAAAAAAAAAAAAAAAAAH//////8AAH/gAAAAAAAAAAAAAAAAAAAAAH//////////+AAAAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////wAAAAAAAAAAAAAAAAAD//////+AAH/AAAAAAAAAAAAAAAAAAAAAAP//////////+AAAAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////////gAAAAAAAAAAAAAAAAAB//////+AAH/AAAAAAAAAAAAAAAAAAAAAAf//////////+AAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/////////AAAAAAAAAAAAAAAAAAB//////+AAH/AAAAAAAAAAAAAAAAAAAAAA////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH////////wAAAAAAAAAAAAAAAAAAB//////+AAH+AAAAAAAAAAAAAAAAAAAAAA////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH///////+AAAAAAAAAAAAAAAAAAAB//////+AAH+AAAAAAAAAAAAAAAAAAAAAB////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH///////4AAAAAAAAAAAAAAAAAAAB//////+AAH+AAAAAAAAAAAAAAAAAAAAAB////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH///////gAAAAAAAAAAAAAAAAAAAB//////4AAD8AAAAAAAAAAAAAAAAAAAAAB////////////+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH///////AAAAAAAAAAAAAAAAAAAAB//////gAABwAAAAAAAAAAAAAAAAAAAAAA/////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH//////+AAAAAAAAAAAAAAAAAAAAA/////+AAAAAAAAAAAAAAAAAAAAAAAAAAA/////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//////+AAAAAAAAAAAAAAAAAAAAA//////AAAAAAAAAAAAAAAAAAAAAAAAAAB/////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//////+AAAAAAAAAAAAAAAAAAAAA//////AAAAAAAAAAAAAAAAAAAAAAAAAAB/////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//////+AAAAAAAAAAAAAAAAAAAAAf////+AAAAAAAAAAAAAAAAAAAAAAAAAAA/////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//////+AAAAAAAAAAAAAAAAAAAAAf////+AAAAAAAAAAAAAAAAAAAAAAAAAAA/////////////gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//////+AAAAAAAAAAAAAAAAAAAAAP////+AAAAAAAAAAAAAAAAAAAAAAAAAAAf////////////gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//////8AAAAAAAAAAAAAAAAAAAAAH////8AAAAAAAAAAAAAAAAAAAAAAAAAAAf////////////gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//////4AAAAAAAAAAAAAAAAAAAAAH////4AAAAAAAAAAAAAAAAAAAAAAAAAAAP////////////gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//////wAAAAAAAAAAAAAAAAAAAAAD////wAAAAAAAAAAAAAAAAAAAAAAAAAAAP////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//////wAAAAAAAAAAAAAAAAAAAAAB////gAAAAAAAAAAAAAAAAAAAAAAAAAAAP////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//////gAAAAAAAAAAAAAAAAAAAAAB////gAAAAAAAAAAAAAAAAAAAAAAAAAAAP////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//////AAAAAAAAAAAAAAAAAAAAAAA////AAAAAAAAAAAAAAAAAAAAAAAAAAAAH////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf/////+AAAAAAAAAAAAAAAAAAAAAAA///+AAAAAAAAAAAAAAAAAAAAAAAAAAAAH////A///////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf/////4AAAAAAAAAAAAAAAAAAAAAAA///8AAAAAAAAAAAAAAAAAAAAAAAAAAAAD///QAH/////+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf/////4AAAAAAAAAAAAAAAAAAAAAAA///wAAAAAAAAAAAAAAAAAAAAAAAAAAAAH//8AAD/////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf/////wAAAAAAAAAAAAAAAAAAAAAAA///gAAAAAAAAAAAAAAAAAAAAAAAAAAAAH//wAAB+////4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//////gAAAAAAAAAAAAAAAAAAAAAAA//8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//wAAA8////4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////7/gAAAAAAAAAAAAAAAAAAAAAAAfgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP+AAAAA5////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA////8eAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD4AAAAARf///wAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB////+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf///gAAAAAADgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB////+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP///gAAAAAABgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH///AAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///AAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH/////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///AAAAAAAAcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH////+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//+AAAAAAAAeIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfvgAAAAAAAAf4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH////gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAfwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH///wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH///gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP///gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAEOAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP4AAAAAAANcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP4AAAAAAAfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAL//6AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHwAAAAAAAfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAL//8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHwAAAAAAA+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAL//wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgAAAAAAD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAT//gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf/4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA///AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB///AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//AAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//AAD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//gACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP7gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAL3wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAG3wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf/wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAeAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/AAAAAAAAAAAAAAB/AAfgAAAAABwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//gAAAAAAAAAYAAAH/wD//AD/+//4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//4AAAAAAAEf//+f//////+////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////wfAAAAA/////////////////////+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD////////AAAH//////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAcAB/////////gAAf///////////////////////4MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAef/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/4P/////////gAA//////////////////////////gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAef/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/+//////////gA////////////////////////////gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAff/gAAAAAAAAAAAAAAAAAAAAAAPwff/gAD////////////8AH////////////////////////////8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/v/wAAAAAAAAAAAAAAAAAAAAAH/5///////////////////AP/////////////////////////////+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/n/4AAAAAAAAAAAAAAAAAHgeP/////////////////////+A////////////////////////////////4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAA//j/4AAAAAAAAAAAAAAAAP/////////////////////////8B/////////////////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAA/+AAAAAAAc+D/8AAAAAAAAAAAAAAAA///////////////////////////v/////////////////////////////////AAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAQAAAAAAP/8AAAAAAAAAAAAAAAH////////////////////////////////////////////////////////////+AAAAAAAAAAAAAAAAAAAAAAAAAAAAH/wBw/4AQAAf//+AAAAAAAAAAAAAAB/////////////////////////////////////////////////////////////8AAAAAAAAAAAAAAAAAAAAAYfwAAAAD//////9/4f///8AAAAAAAAAAAAAAH/////////////////////////////////////////////////////////////gAAAAAAAAAAAAAAAAAAAAAAAP/wAAAP////////////4AAAAAAAAAAAAAAB////////////////////////////////////////////////////////////8AAAAAAAAAAAAAAAAAAf////////wAAH///////////+AAAAAAAAAAAAAAAH////////////////////////////////////////////////////////////gAAAAAAAAAAAAAAAAH/////////////3///////////4AAAAAAAAAAAAAAA////////////////////////////////////////////////////////////+AAAAAAAAAAAAAAAAf/////////////////////////8AAAAAAAAAAAAAAAf////////////////////////////////////////////////////////////8AAAAAAAAAAAAAAAAP////////////////////////8AAAAAAAAAAAAAAA//////////////////////////////////////////////////////////////4AAAAAAAAAAAAAAAD///////////////////////wAAAAAAAAAAAAAAAP///////////////////////////////////////////////////////////////4AAAAAAAAAAAAc+B////////////////////////+AAAAAAAAAAAAAAB////////////////////////////////////////////////////////////////8AAAAAAAAAAAAP///////////////////////////wAAAAAAAAAAAAA/////////////////////////////////////////////////////////////////8AAAAAAAAAAAAH//////////////////////////wAAAAAAAAD/gAAf//////////////////////////////////////////////////////////////////gAAAAAAAAAH8A//////////////////////////AAAAAAAAAP/4AA///////////////////////////////////////////////////////////////////8AAAAAAAAAB+AAP////////////////////////AAAAAAAAAf/4AA/////////////////////////////////////////////////////////////////+AAAAAAAAAAAAAAAAB///////////////////////4AAAACAAB//4AAAAf//////////////////////////////////////////////////////////////8AAAAAAAAAAAAAAAAAf//////////////////////+AAAAHgA///gAAAAH//////////////////////////////////////////////////////////////4AAAAAAAAAAAAAAAAB/////////////////////////wAP/AAf/AAAAAP///////////////////////////////////////////////////////////////wAAAAAAAAAAAAAA/8///////////////////////////gAAAAAAAAAH/////////////////////////////////////////////////////////////////8AAAAAAAAAAAAAAH//////////////////////////////AAAAP4B////////////////////////////////////////////////////////////////////AAAAAAAAAAAAAAA//////////////////////////////+AAf///////////////////////////////////////////////////////////////////////wAAAAAAAAAAAAAA///////////////////////////////wf/////////////////////////////////////////////////////////////////////////gAAAAAAAAAAAAB///////////////////////////////////////////////////////////////////////////////////////////////////////////gAAAAAAAAAAAA///////////////////////////////////////////////////////////////////////////////////////////////////////////4AAAIYf+AAAAAA///////////////////////////////////////////////////////////////////////////////////////////////////////////8OAAAAAA///////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD8AP/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+function base64ToBytes(b64str){
+  const bin=atob(b64str);
+  const bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  return bytes;
+}
+const landMaskPacked=base64ToBytes(LAND_MASK_B64);
+function sampleLand(lon,lat){
+  let i=Math.floor((lon+180)/360*MASK_W);
+  let j=Math.floor((90-lat)/180*MASK_H);
+  if(i<0)i=0; if(i>=MASK_W)i=MASK_W-1;
+  if(j<0)j=0; if(j>=MASK_H)j=MASK_H-1;
+  const bitIndex=j*MASK_W+i;
+  const byte=landMaskPacked[bitIndex>>3];
+  return (byte>>(7-(bitIndex&7)))&1;
+}
+
+const COUNTRIES=[["Afghanistan",33,66],["Albania",41,20],["Algeria",28,3],["Andorra",42.5,1.5],["Angola",-12.5,18.5],["Antigua and Barbuda",17.05,-61.8],["Argentina",-34,-64],["Armenia",40,45],["Australia",-25,135],["Austria",47.33,13.33],["Azerbaijan",40.5,47.5],["Bahamas",24,-76],["Bahrain",26,50.5],["Bangladesh",24,90],["Barbados",13.17,-59.53],["Belarus",53,28],["Belgium",50.83,4],["Belize",17.25,-88.75],["Benin",9.5,2.25],["Bhutan",27.5,90.5],["Bolivia",-17,-65],["Bosnia and Herzegovina",44.25,17.83],["Botswana",-22,24],["Brazil",-10,-55],["Brunei",4.5,114.67],["Bulgaria",43,25],["Burkina Faso",13,-2],["Burundi",-3.5,30],["Cabo Verde",16,-24],["Cambodia",13,105],["Cameroon",6,12],["Canada",60,-96],["Central African Republic",7,21],["Chad",15,19],["Chile",-30,-71],["China",35,105],["Colombia",4,-72],["Comoros",-12.17,44.25],["Congo",-1,15],["Costa Rica",10,-84],["Cote d'Ivoire",8,-5],["Croatia",45.17,15.5],["Cuba",22,-79.5],["Cyprus",35,33],["Czechia",49.75,15],["North Korea",40,127],["Dem. Rep. Congo",0,25],["Denmark",56,10],["Djibouti",11.5,42.5],["Dominica",15.5,-61.33],["Dominican Rep.",19,-70.67],["Ecuador",-2,-77.5],["Egypt",27,30],["El Salvador",13.83,-88.92],["Eq. Guinea",2,10],["Eritrea",15,39],["Estonia",59,26],["eSwatini",-26.5,31.5],["Ethiopia",8,38],["Fiji",-18,178],["Finland",64,26],["France",46,2],["Gabon",-1,11.75],["Gambia",13.5,-15.5],["Georgia",42,43.5],["Germany",51.5,10.5],["Ghana",8,-2],["Greece",39,22],["Grenada",12.12,-61.67],["Guatemala",15.5,-90.25],["Guinea",11,-10],["Guinea-Bissau",12,-15],["Guyana",5,-59],["Haiti",19,-72.42],["Honduras",15,-86.5],["Hungary",47,20],["Iceland",65,-18],["India",20,77],["Indonesia",-5,120],["Iran",32,53],["Iraq",33,44],["Ireland",53,-8],["Israel",31.5,34.75],["Italy",42.83,12.83],["Jamaica",18.25,-77.5],["Japan",36,138],["Jordan",31,36],["Kazakhstan",48,68],["Kenya",1,38],["Kiribati",-5,-170],["Kuwait",29.5,47.75],["Kyrgyzstan",41,75],["Laos",18,105],["Latvia",57,25],["Lebanon",33.83,35.83],["Lesotho",-29.5,28.25],["Liberia",6.5,-9.5],["Libya",25,17],["Liechtenstein",47.17,9.53],["Lithuania",56,24],["Luxembourg",49.75,6.17],["Macedonia",41.83,22],["Madagascar",-20,47],["Malawi",-13.5,34],["Malaysia",2.5,112.5],["Maldives",3.2,73],["Mali",17,-4],["Malta",35.92,14.43],["Marshall Islands",10,167],["Mauritania",20,-12],["Mauritius",-20.3,57.58],["Mexico",23,-102],["Micronesia",5,152],["Monaco",43.73,7.4],["Mongolia",46,105],["Montenegro",42.5,19.3],["Morocco",32,-5],["Mozambique",-18.25,35],["Myanmar",22,98],["Namibia",-22,17],["Nauru",-0.53,166.92],["Nepal",28,84],["Netherlands",52.5,5.75],["New Zealand",-42,174],["Nicaragua",13,-85],["Niger",16,8],["Nigeria",10,8],["Norway",62,10],["Oman",21,57],["Pakistan",30,70],["Palau",6,134],["Panama",9,-80],["Papua New Guinea",-6,147],["Paraguay",-23,-58],["Peru",-10,-76],["Philippines",13,122],["Poland",52,20],["Portugal",39.5,-8],["Qatar",25.5,51.25],["South Korea",37,127.5],["Moldova",47,29],["Romania",46,25],["Russia",60,100],["Rwanda",-2,30],["Saint Kitts and Nevis",17.33,-62.75],["Saint Lucia",13.88,-60.97],["Saint Vincent",13.08,-61.2],["Samoa",-13.8,-172.18],["San Marino",43.93,12.42],["Sao Tome and Principe",1,7],["Saudi Arabia",25,45],["Senegal",14,-14],["Serbia",44,21],["Seychelles",-4.58,55.67],["Sierra Leone",8.5,-11.5],["Singapore",1.37,103.8],["Slovakia",48.67,19.5],["Slovenia",46.25,15.17],["Solomon Islands",-8,159],["Somalia",6,48],["South Africa",-30,26],["South Sudan",8,30],["Spain",40,-4],["Sri Lanka",7,81],["Sudan",16,30],["Suriname",4,-56],["Sweden",62,15],["Switzerland",47,8],["Syria",35,38],["Tajikistan",39,71],["Tanzania",-6,35],["Thailand",15,100],["Timor-Leste",-8.83,125.75],["Togo",8,1.17],["Tonga",-20,-175],["Trinidad and Tobago",11,-61],["Tunisia",34,9],["Turkey",39.06,34.91],["Turkmenistan",40,60],["Tuvalu",-8,178],["Uganda",2,33],["Ukraine",49,32],["United Arab Emirates",24,54],["United Kingdom",54,-4],["United States of America",39.83,-98.58],["Uruguay",-33,-56],["Uzbekistan",41.71,63.85],["Vanuatu",-16,167],["Venezuela",8,-66],["Vietnam",16.17,107.83],["Yemen",15.5,47.5],["Zambia",-15,30],["Zimbabwe",-19,29],["Greenland",72,-40]];
+
+const OCEANS=[["Pacific Ocean",5,-150],["Atlantic Ocean",5,-30],["Indian Ocean",-20,75],["Southern Ocean",-65,0],["Arctic Ocean",85,0],["Mediterranean Sea",35,18],["Caribbean Sea",15,-75]];
+
+const ISLANDS=[["Borneo",0.5,114],["Sumatra",-0.5,101],["Java",-7.5,110],["New Guinea",-5,141],["Sicily",37.6,14.1],["Sardinia",40,9],["Hawaii",20,-156.5],["Tasmania",-42,147],["Newfoundland",49,-56],["Cuba",21.5,-79],["Great Britain",53,-2],["Honshu",36,138],["Luzon",16,121],["Baffin Island",68,-70]];
+
+const CITIES_EXTRA=[["Beijing",39.9,116.4],["Tokyo",35.7,139.7],["Moscow",55.75,37.6],["Cairo",30.0,31.2],["Nairobi",-1.29,36.82],["Lagos",6.5,3.4],["Rio de Janeiro",-22.9,-43.2],["Buenos Aires",-34.6,-58.4],["Mexico City",19.4,-99.1],["Toronto",43.65,-79.38],["Los Angeles",34.05,-118.24],["Berlin",52.52,13.4],["Rome",41.9,12.5],["Madrid",40.4,-3.7],["Istanbul",41.0,28.98],["Bangkok",13.75,100.5],["Singapore",1.35,103.82],["Seoul",37.57,126.98],["Sydney",-33.87,151.21],["Delhi",28.6,77.2],["Riyadh",24.7,46.7],["Lisbon",38.7,-9.1],["Amsterdam",52.37,4.9],["Vienna",48.2,16.37],
+["Tampa",27.95,-82.46],["Miami",25.76,-80.19],["Orlando",28.54,-81.38],["Houston",29.76,-95.37],["Dallas",32.78,-96.8],["Atlanta",33.75,-84.39],["Boston",42.36,-71.06],["Seattle",47.61,-122.33],["Denver",39.74,-104.99],["Phoenix",33.45,-112.07],["San Francisco",37.77,-122.42],["Las Vegas",36.17,-115.14],["Washington",38.9,-77.04],["Philadelphia",39.95,-75.16],["Detroit",42.33,-83.05],["Minneapolis",44.98,-93.27],["Portland",45.52,-122.68],["San Diego",32.72,-117.16],["Austin",30.27,-97.74],["Nashville",36.16,-86.78],["New Orleans",29.95,-90.07],["Chicago",41.88,-87.63],["Charlotte",35.23,-80.84],["Jacksonville",30.33,-81.66],["Honolulu",21.31,-157.86]];
+
+const canvas=document.getElementById('globeCanvas');
+const ctx=canvas.getContext('2d');
+let W,H,DPR;
+function resize(){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  W=window.innerWidth; H=window.innerHeight;
+  canvas.width=W*DPR; canvas.height=H*DPR;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+resize();
+window.addEventListener('resize',resize);
+
+const DEG=Math.PI/180;
+function project(lon,lat,angleY,angleX){
+  const phi=(90-lat)*DEG, theta=lon*DEG;
+  let x=Math.sin(phi)*Math.cos(theta);
+  let y=Math.cos(phi);
+  let z=Math.sin(phi)*Math.sin(theta);
+  // rotate Y
+  const cy=Math.cos(angleY), sy=Math.sin(angleY);
+  const x1=x*cy+z*sy, z1=-x*sy+z*cy, y1=y;
+  // rotate X
+  const cx=Math.cos(angleX), sx=Math.sin(angleX);
+  const y2=y1*cx - z1*sx, z2=y1*sx + z1*cx;
+  return {x:x1, y:y2, z:z2};
+}
+function targetAngles(lon,lat){
+  const phi=(90-lat)*DEG, theta=lon*DEG;
+  const x=Math.sin(phi)*Math.cos(theta), y=Math.cos(phi), z=Math.sin(phi)*Math.sin(theta);
+  const angleY=Math.atan2(-x,z);
+  const r=Math.sqrt(x*x+z*z);
+  const angleX=Math.atan2(y,r);
+  return {angleY,angleX};
+}
+function shortestDelta(a,b){
+  let d=(b-a)%(Math.PI*2);
+  if(d>Math.PI) d-=Math.PI*2;
+  if(d<-Math.PI) d+=Math.PI*2;
+  return d;
+}
+
+let angleY=0.6, angleX=-0.25;
+let tapStartX=0, tapStartY=0, tapStartTime=0, tapCandidate=false;
+let lastCx=0, lastCy=0, lastR=1;
+let focusedCountry=null;
+let autoRotate=true;
+let dragging=false, lastX=0, lastY=0;
+let velY=0, velX=0;
+let radius = Math.min(W,H)*0.30;
+let baseRadius = radius;
+let zoom=1, zoomVel=0;
+const ZOOM_MIN=0.6, ZOOM_MAX=4.5;
+
+const activePointers=new Map(); // id -> {x,y}
+let pinchStartDist=0, pinchStartZoom=1;
+
+function pointerDist(){
+  const pts=[...activePointers.values()];
+  const dx=pts[0].x-pts[1].x, dy=pts[0].y-pts[1].y;
+  return Math.sqrt(dx*dx+dy*dy);
+}
+
+canvas.addEventListener('pointerdown',e=>{
+  canvas.setPointerCapture(e.pointerId);
+  activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  autoRotate=false;
+  if(activePointers.size===1){
+    dragging=true; lastX=e.clientX; lastY=e.clientY; velY=0; velX=0;
+    tapStartX=e.clientX; tapStartY=e.clientY; tapStartTime=performance.now(); tapCandidate=true;
+  } else if(activePointers.size===2){
+    dragging=false; // switch to pinch mode
+    tapCandidate=false;
+    pinchStartDist=pointerDist();
+    pinchStartZoom=zoom;
+  }
+});
+canvas.addEventListener('pointermove',e=>{
+  if(!activePointers.has(e.pointerId)) return;
+  e.preventDefault();
+  activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+
+  if(activePointers.size>=2){
+    const dist=pointerDist();
+    if(pinchStartDist>10){
+      zoom=Math.max(ZOOM_MIN,Math.min(ZOOM_MAX, pinchStartZoom*(dist/pinchStartDist)));
+    }
+    return;
+  }
+  if(!dragging) return;
+  const dx=e.clientX-lastX, dy=e.clientY-lastY;
+  if(Math.abs(e.clientX-tapStartX)>6 || Math.abs(e.clientY-tapStartY)>6) tapCandidate=false;
+  lastX=e.clientX; lastY=e.clientY;
+  velY=dx*0.012; velX=dy*0.012;
+  angleY += velY;
+  angleX = Math.max(-1.3, Math.min(1.3, angleX + velX));
+},{passive:false});
+
+function releasePointer(e){
+  const wasSingle=activePointers.size===1;
+  if(wasSingle && tapCandidate && (performance.now()-tapStartTime)<350){
+    handleGlobeTap(e.clientX,e.clientY);
+  }
+  activePointers.delete(e.pointerId);
+  try{canvas.releasePointerCapture(e.pointerId);}catch(err){}
+  tapCandidate=false;
+  if(activePointers.size===1){
+    // resume single-finger rotate from the remaining finger's current position
+    const [remaining]=activePointers.values();
+    lastX=remaining.x; lastY=remaining.y;
+    dragging=true;
+  } else {
+    dragging=false;
+  }
+}
+canvas.addEventListener('pointerup',releasePointer);
+canvas.addEventListener('pointercancel',releasePointer);
+
+// desktop scroll-wheel zoom (pinch-to-zoom on trackpads triggers this too)
+canvas.addEventListener('wheel',e=>{
+  e.preventDefault();
+  autoRotate=false;
+  const factor=Math.exp(-e.deltaY*0.0016);
+  zoom=Math.max(ZOOM_MIN,Math.min(ZOOM_MAX, zoom*factor));
+},{passive:false});
+
+let flying=false, flyT=0, flyStartY=0, flyStartX=0, flyTargetY=0, flyTargetX=0;
+let flyZoomStart=1, flyZoomTarget=1;
+let selected=null;
+let flyPurpose='search'; // 'search' -> opens hotel map view; 'explore' -> shows country chip
+function flyToLatLon(lat,lon,purpose,targetZoom){
+  autoRotate=false; flying=true; flyT=0;
+  flyStartY=angleY; flyStartX=angleX;
+  const t=targetAngles(lon,lat);
+  flyTargetY=angleY+shortestDelta(angleY,t.angleY);
+  flyTargetX=t.angleX;
+  selected={lon,lat};
+  flyPurpose=purpose||'search';
+  flyZoomStart=zoom;
+  flyZoomTarget=targetZoom||1;
+}
+
+// convert a tap point (client coords) to lon/lat on the globe surface, using the
+// same inverse-projection math the raster renderer uses per-pixel
+function screenToLonLat(px,py){
+  const u=(px-lastCx)/lastR, v=(py-lastCy)/lastR;
+  const rr=u*u+v*v;
+  if(rr>1) return null; // tapped outside the sphere
+  const x2=u, y2=-v, z2=Math.sqrt(1-rr);
+  const cosY=Math.cos(angleY), sinY=Math.sin(angleY);
+  const cosX=Math.cos(angleX), sinX=Math.sin(angleX);
+  const y1=y2*cosX+z2*sinX;
+  const z1=-y2*sinX+z2*cosX;
+  const x1=x2;
+  const x=x1*cosY - z1*sinY;
+  const z=x1*sinY + z1*cosY;
+  const y=y1;
+  const lat=90-Math.acos(Math.max(-1,Math.min(1,y)))/DEG;
+  const lon=Math.atan2(z,x)/DEG;
+  return {lon,lat};
+}
+
+function angularDist(lat1,lon1,lat2,lon2){
+  const p1=lat1*DEG, p2=lat2*DEG, dp=(lat2-lat1)*DEG, dl=(lon2-lon1)*DEG;
+  const a=Math.sin(dp/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+  return 2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function nearestCountry(lat,lon){
+  let best=null, bestD=Infinity;
+  for(const [name,clat,clon] of COUNTRIES){
+    const d=angularDist(lat,lon,clat,clon);
+    if(d<bestD){ bestD=d; best=name; }
+  }
+  return best;
+}
+
+function handleGlobeTap(px,py){
+  const rect=canvas.getBoundingClientRect();
+  const ll=screenToLonLat(px-rect.left, py-rect.top);
+  if(!ll) return;
+  if(!sampleLand(ll.lon,ll.lat)) return; // tapped ocean, not a country
+  const name=nearestCountry(ll.lat,ll.lon);
+  focusCountry(name, ll.lat, ll.lon);
+}
+
+function focusCountry(name,lat,lon){
+  focusedCountry={name,lat,lon};
+  flyToLatLon(lat,lon,'explore',2.2);
+}
+
+// offscreen buffer the globe raster is computed into, then scaled onto the main canvas
+const RASTER_MAX=340; // cap internal resolution for performance regardless of zoom/DPR
+const gbuf=document.createElement('canvas');
+const gctx=gbuf.getContext('2d');
+let gImg=null, bufSize=0;
+
+const LIGHT=(()=>{ const l={x:-0.5,y:0.55,z:0.7}; const m=Math.sqrt(l.x*l.x+l.y*l.y+l.z*l.z); return {x:l.x/m,y:l.y/m,z:l.z/m}; })();
+
+// cheap hash + smoothed value noise, used for satellite-style land mottling and cloud wisps
+function hash2(x,y){ const s=Math.sin(x*127.1+y*311.7)*43758.5453; return s-Math.floor(s); }
+function valueNoise(x,y){
+  const xi=Math.floor(x), yi=Math.floor(y);
+  const xf=x-xi, yf=y-yi;
+  const u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
+  const h00=hash2(xi,yi), h10=hash2(xi+1,yi), h01=hash2(xi,yi+1), h11=hash2(xi+1,yi+1);
+  const top=h00+(h10-h00)*u, bottom=h01+(h11-h01)*u;
+  return top+(bottom-top)*v;
+}
+
+function renderGlobeRaster(effRadius){
+  bufSize=Math.max(20,Math.min(RASTER_MAX, Math.round(effRadius*2)));
+  if(gbuf.width!==bufSize){ gbuf.width=bufSize; gbuf.height=bufSize; gImg=gctx.createImageData(bufSize,bufSize); }
+  const R=bufSize/2;
+  const data=gImg.data;
+  const cosY=Math.cos(angleY), sinY=Math.sin(angleY);
+  const cosX=Math.cos(angleX), sinX=Math.sin(angleX);
+  const cloudDrift=performance.now()*0.000004;
+
+  for(let py=0;py<bufSize;py++){
+    const v=(py-R)/R; // screen-space y, -1..1
+    for(let px=0;px<bufSize;px++){
+      const idx=(py*bufSize+px)*4;
+      const u=(px-R)/R;
+      const rr=u*u+v*v;
+      if(rr>1){ data[idx+3]=0; continue; }
+      const x2=u, y2=-v, z2=Math.sqrt(1-rr);
+
+      // undo display rotation to find the original lon/lat under this screen pixel
+      const y1=y2*cosX+z2*sinX;
+      const z1=-y2*sinX+z2*cosX;
+      const x1=x2;
+      const x=x1*cosY - z1*sinY;
+      const z=x1*sinY + z1*cosY;
+      const y=y1;
+
+      const lat=90-Math.acos(Math.max(-1,Math.min(1,y)))/DEG;
+      const lon=Math.atan2(z,x)/DEG;
+      const land=sampleLand(lon,lat);
+
+      // Lambertian shading using the view-space normal (=view-space point on unit sphere)
+      const diffuse=Math.max(0, x2*LIGHT.x + y2*LIGHT.y + z2*LIGHT.z);
+      const light=0.38+0.72*diffuse;
+
+      let r,g,b;
+      if(land){
+        const n=valueNoise(lon*0.22,lat*0.22);
+        // blend deep green -> tan/brown for a satellite-mottled look
+        const gr=[46,84,42], br=[142,124,78];
+        const t=n;
+        r=(gr[0]+(br[0]-gr[0])*t)*light;
+        g=(gr[1]+(br[1]-gr[1])*t)*light;
+        b=(gr[2]+(br[2]-gr[2])*t)*light;
+      } else {
+        const n=valueNoise(lon*0.3+7.3, lat*0.3+1.9);
+        const deep=[10,58,120], shallow=[28,110,168];
+        const t=n*0.5;
+        r=(deep[0]+(shallow[0]-deep[0])*t)*light;
+        g=(deep[1]+(shallow[1]-deep[1])*t)*light;
+        b=(deep[2]+(shallow[2]-deep[2])*t)*light;
+        // sun glint on water
+        if(diffuse>0.82){ const glint=(diffuse-0.82)/0.18; r+=90*glint; g+=90*glint; b+=70*glint; }
+      }
+
+      // thin cloud wisps over everything (smoothed noise so they drift, not flicker)
+      const cloud=valueNoise(lon*0.1+cloudDrift, lat*0.12);
+      if(cloud>0.7){
+        const ca=Math.min(1,(cloud-0.7)/0.3)*0.55*Math.max(0.4,light);
+        r=r*(1-ca)+255*ca; g=g*(1-ca)+255*ca; b=b*(1-ca)+255*ca;
+      }
+
+      data[idx]=r; data[idx+1]=g; data[idx+2]=b; data[idx+3]=255;
+    }
+  }
+  gctx.putImageData(gImg,0,0);
+}
+
+function drawGlobe(){
+  ctx.clearRect(0,0,W,H);
+  const cx=W/2, cy=H*0.42;
+  const R=Math.min(radius*zoom, Math.min(W,H)*1.4);
+  lastCx=cx; lastCy=cy; lastR=R;
+
+  // soft blue atmospheric halo (Google-Earth-style limb glow)
+  const glow=ctx.createRadialGradient(cx,cy,R*0.82,cx,cy,R*1.35);
+  glow.addColorStop(0,'rgba(130,190,255,0.55)');
+  glow.addColorStop(0.6,'rgba(110,170,255,0.22)');
+  glow.addColorStop(1,'rgba(110,170,255,0)');
+  ctx.fillStyle=glow;
+  ctx.beginPath(); ctx.arc(cx,cy,R*1.35,0,7); ctx.fill();
+
+  renderGlobeRaster(R);
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.clip();
+  ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(gbuf,0,0,bufSize,bufSize,cx-R,cy-R,R*2,R*2);
+  ctx.restore();
+
+  // bright thin limb line, like sunlit atmosphere edge
+  ctx.strokeStyle='rgba(180,215,255,0.55)';
+  ctx.lineWidth=1.6;
+  ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.stroke();
+
+  drawLabels(cx,cy,R);
+
+  // selected destination marker (pulses, sits front-center once flight completes)
+  if(selected){
+    const p=project(selected.lon,selected.lat,angleY,angleX);
+    if(p.z>-0.3){
+      const sx=cx+p.x*R, sy=cy-p.y*R;
+      const pulse=1+0.35*Math.sin(performance.now()/220);
+      ctx.fillStyle='#ff3b30';
+      ctx.beginPath(); ctx.arc(sx,sy,3.6,0,7); ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,0.85)';
+      ctx.lineWidth=1.3;
+      ctx.beginPath(); ctx.arc(sx,sy,3.6,0,7); ctx.stroke();
+      ctx.strokeStyle='rgba(255,59,48,0.55)';
+      ctx.lineWidth=1.4;
+      ctx.beginPath(); ctx.arc(sx,sy,7*pulse,0,7); ctx.stroke();
+    }
+  }
+}
+
+// draw a text label with a light halo so it reads over any background color
+function drawLabel(ctx,text,x,y,font,fillColor){
+  ctx.font=font;
+  ctx.textAlign='center';
+  ctx.lineWidth=3;
+  ctx.strokeStyle='rgba(255,255,255,0.75)';
+  ctx.strokeText(text,x,y);
+  ctx.fillStyle=fillColor;
+  ctx.fillText(text,x,y);
+}
+
+function drawLabels(cx,cy,R){
+  const zoomLevel=R/baseRadius;
+
+  // oceans: always visible, sparse, italic
+  for(const [name,lat,lon] of OCEANS){
+    const p=project(lon,lat,angleY,angleX);
+    if(p.z<0.15) continue;
+    const sx=cx+p.x*R, sy=cy-p.y*R;
+    drawLabel(ctx,name,sx,sy,'italic 600 12px Segoe UI','rgba(20,60,110,0.8)');
+  }
+
+  if(zoomLevel>1.05){
+    for(const [name,lat,lon] of COUNTRIES){
+      const p=project(lon,lat,angleY,angleX);
+      if(p.z<0.12) continue;
+      const sx=cx+p.x*R, sy=cy-p.y*R;
+      drawLabel(ctx,name,sx,sy,'700 11px Segoe UI','rgba(35,20,10,0.88)');
+    }
+  }
+
+  if(zoomLevel>1.7){
+    for(const [name,lat,lon] of ISLANDS){
+      const p=project(lon,lat,angleY,angleX);
+      if(p.z<0.1) continue;
+      const sx=cx+p.x*R, sy=cy-p.y*R;
+      drawLabel(ctx,name,sx,sy,'italic 500 10px Segoe UI','rgba(20,60,110,0.8)');
+    }
+    const allCities=[...CITIES_EXTRA, ...Object.values(DESTINATIONS).map(d=>[d.city.split(',')[0],d.lat,d.lon])];
+    for(const [name,lat,lon] of allCities){
+      const p=project(lon,lat,angleY,angleX);
+      if(p.z<0.1) continue;
+      const sx=cx+p.x*R, sy=cy-p.y*R;
+      ctx.fillStyle='#571f84';
+      ctx.beginPath(); ctx.arc(sx,sy,1.8,0,7); ctx.fill();
+      drawLabel(ctx,name,sx,sy+11,'600 10px Segoe UI','rgba(10,10,20,0.85)');
+    }
+  }
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  if(autoRotate) angleY+=0.0016;
+
+  if(!dragging && !flying && (Math.abs(velY)>0.0002 || Math.abs(velX)>0.0002)){
+    angleY += velY;
+    angleX = Math.max(-1.3, Math.min(1.3, angleX + velX));
+    velY *= 0.94; velX *= 0.94;
+  }
+
+  if(flying){
+    flyT+=0.016;
+    const t=Math.min(1,flyT);
+    const ease=1-Math.pow(1-t,3);
+    angleY=flyStartY+(flyTargetY-flyStartY)*ease;
+    angleX=flyStartX+(flyTargetX-flyStartX)*ease;
+    radius=baseRadius*(1+ease*1.15);
+    zoom=flyZoomStart+(flyZoomTarget-flyZoomStart)*ease;
+    if(t>=1){
+      flying=false;
+      if(flyPurpose==='search') setTimeout(showMapView,280);
+      else setTimeout(showCountryChip,280);
+    }
+  }
+
+  drawGlobe();
+}
+animate();
+
+/* ============================================================
+   SEARCH + SUGGESTIONS
+============================================================ */
+const destInput=document.getElementById('destInput');
+const suggestBox=document.getElementById('suggestBox');
+const chips=document.getElementById('chips');
+["Zanzibar","Dubai","Maldives","Cape Town","Mauritius"].forEach(name=>{
+  const c=document.createElement('div');
+  c.className='chip'; c.textContent=name;
+  c.onclick=()=>{ destInput.value=name; goSearch(); };
+  chips.appendChild(c);
+});
+
+// One searchable place index: curated destinations (real hotel data) first,
+// then known cities, then countries. Anything not in here falls back to the
+// nearest known place (findNearestPlace) instead of a dead end — see
+// BRS Concept A, "Graba never returns zero availability".
+function buildSearchIndex(){
+  const idx=[];
+  for(const key in DESTINATIONS){
+    const d=DESTINATIONS[key];
+    idx.push({name:d.city.split(',')[0], full:d.city, lat:d.lat, lon:d.lon, destKey:key, tier:0});
+  }
+  for(const [name,lat,lon] of CITIES_EXTRA){
+    idx.push({name, full:name, lat, lon, tier:1});
+  }
+  for(const [name,lat,lon] of COUNTRIES){
+    idx.push({name, full:name, lat, lon, tier:2});
+  }
+  return idx;
+}
+const SEARCH_INDEX=buildSearchIndex();
+
+function levenshtein(a,b){
+  const m=a.length, n=b.length;
+  const dp=Array.from({length:m+1},(_, i)=>[i,...Array(n).fill(0)]);
+  for(let j=0;j<=n;j++) dp[0][j]=j;
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++){
+    dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+  }
+  return dp[m][n];
+}
+function findPlace(query){
+  const v=query.trim().toLowerCase();
+  if(!v) return null;
+  const exact=SEARCH_INDEX.filter(p=>p.name.toLowerCase()===v);
+  if(exact.length) return exact.sort((a,b)=>a.tier-b.tier)[0];
+  const starts=SEARCH_INDEX.filter(p=>{
+    const n=p.name.toLowerCase();
+    return n.startsWith(v) || v.startsWith(n);
+  });
+  if(starts.length) return starts.sort((a,b)=>a.tier-b.tier)[0];
+  const contains=SEARCH_INDEX.filter(p=>{
+    const n=p.name.toLowerCase();
+    return n.includes(v) || v.includes(n);
+  });
+  if(contains.length) return contains.sort((a,b)=>a.tier-b.tier)[0];
+  return null;
+}
+// BRS Concept A — "Graba never returns zero availability": if nothing matches directly,
+// widen the search (here: nearest-name match) rather than hand back an empty result.
+function findNearestPlace(query){
+  const v=query.trim().toLowerCase();
+  if(!v) return null;
+  let best=null, bestScore=Infinity;
+  for(const p of SEARCH_INDEX){
+    const n=p.name.toLowerCase();
+    const score=levenshtein(v,n)/Math.max(v.length,n.length,1) + p.tier*0.05;
+    if(score<bestScore){ bestScore=score; best=p; }
+  }
+  return best;
+}
+
+destInput.addEventListener('input',()=>{
+  const v=destInput.value.trim().toLowerCase();
+  suggestBox.innerHTML='';
+  hideSearchError();
+  if(!v){ suggestBox.style.display='none'; return; }
+  const matches=SEARCH_INDEX.filter(p=>p.name.toLowerCase().includes(v))
+    .sort((a,b)=>a.tier-b.tier).slice(0,6);
+  if(!matches.length){ suggestBox.style.display='none'; return; }
+  matches.forEach(p=>{
+    const d=document.createElement('div');
+    d.textContent=p.full;
+    d.onclick=()=>{ destInput.value=p.name; suggestBox.style.display='none'; goSearch(); };
+    suggestBox.appendChild(d);
+  });
+  suggestBox.style.display='block';
+});
+
+document.getElementById('goBtn').onclick=goSearch;
+destInput.addEventListener('keydown',e=>{ if(e.key==='Enter') goSearch(); });
+
+function showExpandedSearchNotice(query,foundName){
+  let el=document.getElementById('searchError');
+  if(!el){
+    el=document.createElement('div');
+    el.id='searchError';
+    el.style.cssText='color:var(--text-dim);font-size:12px;text-align:center;margin-top:2px;';
+    destInput.closest('.searchWrap').insertBefore(el, chips);
+  }
+  el.textContent=`No exact match for "${query}" — widened the search to ${foundName} for you.`;
+}
+function hideSearchError(){
+  const el=document.getElementById('searchError');
+  if(el) el.remove();
+}
+
+let currentDestKey=null;
+function goSearch(){
+  const raw=destInput.value.trim();
+  suggestBox.style.display='none';
+  if(!raw) return;
+  let place=findPlace(raw);
+  let expanded=false;
+  if(!place){
+    // never zero availability — fall back to the closest known place instead of a dead end
+    place=findNearestPlace(raw);
+    expanded=!!place;
+  }
+  if(!place) return; // SEARCH_INDEX is never empty in practice, but guard anyway
+  if(expanded) showExpandedSearchNotice(raw, place.full); else hideSearchError();
+  if(place.destKey){
+    currentDestKey=place.destKey;
+  } else {
+    // recognized real place, but no curated hotel dataset yet — build one on the fly
+    const key='__found_'+place.name;
+    DESTINATIONS[key]={ city:place.full, country:place.full, lat:place.lat, lon:place.lon, code:'', areas:[] };
+    currentDestKey=key;
+  }
+  flyToLatLon(DESTINATIONS[currentDestKey].lat, DESTINATIONS[currentDestKey].lon, 'search');
+}
+
+/* ============================================================
+   MAP VIEW (destination) + VAN DER BELT CAROUSEL
+============================================================ */
+const mapView=document.getElementById('mapView');
+const globeUI=document.getElementById('globeUI');
+const globeCanvasEl=document.getElementById('globeCanvas');
+const mapCanvas=document.getElementById('mapCanvas');
+const beltScroll=document.getElementById('beltScroll');
+const beltCount=document.getElementById('beltCount');
+
+let hotelPool=[];
+let beltShown=0;
+
+/* ============================================================
+   VAN DER BELT — prioritised-availability engine (BRS §5.8.8-11,
+   Distinguishing Concepts B: "Graba always prioritises availability
+   to please the customer"). Never returns zero availability (the
+   pool regenerates endlessly) and every result is weighted before
+   it reaches the belt / map, rather than shown in raw order.
+============================================================ */
+const MASTER_WEIGHTS={customer:0.80, profit:0.05, service:0.05, supplier:0.10}; // from BRS Master Weighting Parameters
+const userPrefs={types:{}, dislikes:{}};           // "Customer Preferences" + "Graba Determined Preferences" (learned, in-session)
+function notePreference(type, delta){
+  userPrefs.types[type]=(userPrefs.types[type]||0)+delta;
+}
+function computePriorityScore(h){
+  // Customer weighting: how much this property type matches what the customer has shown interest in / booked / disliked
+  const rawPref=(userPrefs.types[h.type]||0) - (userPrefs.dislikes[h.type]||0)*1.5;
+  const customerScore=1/(1+Math.exp(-rawPref/6)); // squashed 0..1, 0.5 = neutral / no signal yet
+  const profitScore=Math.min(1, h.profitPct/0.20);
+  const serviceScore=Math.min(1, h.rating/5);
+  const supplierScore=Math.min(1, h.supplierPriority/5);
+  return customerScore*MASTER_WEIGHTS.customer + profitScore*MASTER_WEIGHTS.profit
+       + serviceScore*MASTER_WEIGHTS.service + supplierScore*MASTER_WEIGHTS.supplier;
+}
+// ORDER by Overall Weighting Score, keeping already-shown cards fixed (BRS 3.6 GROUP PRIORITISED AVAILABILITY)
+function reprioritiseUnshown(){
+  const shown=hotelPool.slice(0,beltShown);
+  const rest=hotelPool.slice(beltShown);
+  rest.sort((a,b)=>computePriorityScore(b)-computePriorityScore(a));
+  hotelPool=shown.concat(rest);
+}
+
+/* ============================================================
+   SEARCH RADIUS EXPANSION — BRS §5.8.9-11 / Distinguishing
+   Concept A.3.1: "An algorithm is used to expand/broaden the
+   customer's availability search enquiry." Applied here to the
+   destination map: filtering by property type starts with a
+   tight radius around "me" and automatically widens, in steps,
+   until there are enough options — never zero availability.
+============================================================ */
+const RADIUS_MIN=18, RADIUS_STEP=16, RADIUS_MAX=70, MIN_RESULTS=6;
+const ZONE_LABELS=["Nearby","Wider area","Across town","Whole destination"];
+const METERS_PER_PCT=90; // converts the internal % search radius into a real distance on the map
+let activeFilter='All';
+let filterModeActive=false;
+let dismissedIds=new Set(); // reset per destination in showMapView
+function hotelDist(h){ return Math.hypot(h.x-50, h.y-50); } // percentage-space distance from "me"
+
+// ---- Real map (Leaflet + OpenStreetMap) replacing the old illustrated canvas ----
+let leafletMap=null, markerLayer=null, meMarker=null, radiusCircle1=null, radiusCircle2=null;
+function initLeafletMap(d){
+  if(typeof L==='undefined'){
+    console.warn('Leaflet failed to load (blocked network?) — map view will show a fallback.');
+    document.getElementById('leafletMap').innerHTML=
+      '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:12.5px;padding:20px;text-align:center;">Map unavailable — open this page in Safari/Chrome directly for the live map.</div>';
+    return;
+  }
+  try{
+    if(!leafletMap){
+      leafletMap=L.map('leafletMap',{attributionControl:true}).setView([d.lat,d.lon],13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+        maxZoom:19, attribution:'© OpenStreetMap contributors'
+      }).addTo(leafletMap);
+      markerLayer=L.layerGroup().addTo(leafletMap);
+    } else {
+      leafletMap.setView([d.lat,d.lon],13);
+      markerLayer.clearLayers();
+    }
+    if(meMarker) meMarker.remove();
+    meMarker=L.marker([d.lat,d.lon],{icon:L.divIcon({className:'',html:'<div class="pin me"><div class="dot"></div></div>',iconSize:[0,0],iconAnchor:[0,0]})}).addTo(leafletMap);
+    setTimeout(()=>leafletMap.invalidateSize(),80); // container was hidden until just now
+  } catch(err){
+    console.warn('Leaflet map init failed:', err);
+  }
+}
+function setRadiusRings(pct){
+  if(!leafletMap) return;
+  const d=DESTINATIONS[currentDestKey];
+  if(radiusCircle1) radiusCircle1.remove();
+  if(radiusCircle2) radiusCircle2.remove();
+  radiusCircle1=L.circle([d.lat,d.lon],{radius:pct*METERS_PER_PCT, color:'#571f84', weight:1.5,
+    dashArray:'5,5', fillColor:'#571f84', fillOpacity:0.06}).addTo(leafletMap);
+  radiusCircle2=L.circle([d.lat,d.lon],{radius:Math.min(100,pct*1.4)*METERS_PER_PCT, color:'#571f84', weight:1,
+    dashArray:'2,7', fillColor:'#571f84', fillOpacity:0.03}).addTo(leafletMap);
+}
+function hideRadiusRings(){
+  if(radiusCircle1){ radiusCircle1.remove(); radiusCircle1=null; }
+  if(radiusCircle2){ radiusCircle2.remove(); radiusCircle2=null; }
+  const note=document.getElementById('radiusNote');
+  if(note) note.style.display='none';
+}
+function renderFilterChips(){
+  const bar=document.getElementById('mapFilters');
+  bar.innerHTML='';
+  ["All", ...PROPERTY_TYPES].forEach(type=>{
+    const c=document.createElement('div');
+    c.className='filterChip'+(type===activeFilter?' sel':'');
+    c.textContent=type;
+    c.onclick=()=>{ activeFilter=type; renderFilterChips(); applyRadiusFilter(); };
+    bar.appendChild(c);
+  });
+}
+// Runs the search-radius algorithm: widen step by step until MIN_RESULTS is met,
+// exactly like the BRS's Search Radius / Search Increment diagram (5.8.9).
+function applyRadiusFilter(){
+  if(activeFilter==='All'){
+    filterModeActive=false;
+    hideRadiusRings();
+    renderPins();
+    beltShown=0;
+    beltScroll.innerHTML='';
+    loadMoreBelt();
+    return;
+  }
+  filterModeActive=true;
+  let radius=RADIUS_MIN, step=0, matches=[];
+  while(step<ZONE_LABELS.length){
+    matches=hotelPool.filter(h=>h.type===activeFilter && !dismissedIds.has(h.id) && hotelDist(h)<=radius);
+    if(matches.length>=MIN_RESULTS || radius>=RADIUS_MAX) break;
+    radius=Math.min(RADIUS_MAX, radius+RADIUS_STEP);
+    step++;
+  }
+  let usedFallback=false;
+  if(matches.length<MIN_RESULTS){
+    // still thin even at max radius — never zero: top up with the closest-priority
+    // options regardless of type, clearly labelled, rather than showing nothing.
+    usedFallback=true;
+    const extras=hotelPool.filter(h=>!matches.includes(h) && !dismissedIds.has(h.id))
+      .sort((a,b)=>computePriorityScore(b)-computePriorityScore(a))
+      .slice(0, MIN_RESULTS-matches.length);
+    matches=matches.concat(extras);
+  }
+  matches.sort((a,b)=>computePriorityScore(b)-computePriorityScore(a));
+
+  setRadiusRings(radius);
+  const note=document.getElementById('radiusNote');
+  const zone=ZONE_LABELS[Math.min(step,ZONE_LABELS.length-1)];
+  note.textContent = usedFallback
+    ? `No zero results — showing closest matches near ${zone.toLowerCase()}`
+    : (step>0 ? `Widened search to "${zone}" to find more ${activeFilter} options` : `Searching ${zone.toLowerCase()}`);
+  note.style.display='block';
+
+  renderPins(matches);
+  beltShown=0;
+  beltScroll.innerHTML='';
+  renderBeltCards(matches, {infinite:false});
+  beltCount.textContent=`${matches.length} of ${matches.length}`;
+}
+
+function showMapView(){
+  const d=DESTINATIONS[currentDestKey];
+  mapView.style.display='flex';
+  globeUI.style.display='none';
+  document.querySelector('.hint').style.display='none';
+
+  document.getElementById('destCity').textContent=d.city;
+  document.getElementById('destMeta').textContent=`Live · ${d.country} · ${d.code} airport linked`;
+  initLeafletMap(d);
+
+  hotelPool=genHotels(currentDestKey,60);
+  hotelPool.sort((a,b)=>computePriorityScore(b)-computePriorityScore(a)); // never zero / always-best-first availability
+  activeFilter='All';
+  filterModeActive=false;
+  dismissedIds=new Set();
+  hideRadiusRings();
+  renderFilterChips();
+  beltShown=0;
+  beltScroll.innerHTML='';
+  renderPins();
+  loadMoreBelt();
+}
+document.getElementById('backBtn').onclick=()=>{
+  mapView.style.display='none';
+  globeUI.style.display='flex';
+  document.querySelector('.hint').style.display='block';
+  autoRotate=true;
+  radius=baseRadius;
+  zoom=1;
+  selected=null;
+  hideCountryChip();
+};
+
+const countryChip=document.getElementById('countryChip');
+function showCountryChip(){
+  if(!focusedCountry) return;
+  document.getElementById('countryChipName').textContent=focusedCountry.name;
+  countryChip.style.display='block';
+}
+function hideCountryChip(){
+  countryChip.style.display='none';
+  focusedCountry=null;
+}
+document.getElementById('countryChipClose').onclick=()=>{
+  hideCountryChip();
+  autoRotate=true;
+  radius=baseRadius;
+  zoom=1;
+  selected=null;
+};
+document.getElementById('countryChipExplore').onclick=()=>{
+  if(!focusedCountry) return;
+  const key='__tap_'+focusedCountry.name;
+  DESTINATIONS[key]={
+    city:focusedCountry.name,
+    country:focusedCountry.name,
+    lat:focusedCountry.lat,
+    lon:focusedCountry.lon,
+    code:'',
+    areas:[]
+  };
+  currentDestKey=key;
+  hideCountryChip();
+  showMapView();
+};
+
+function renderPins(list){
+  if(!markerLayer) return;
+  markerLayer.clearLayers();
+  const pool=list||hotelPool;
+  const RICH_COUNT=6; // only the top-priority matches get a photo + name card; the rest are simple markers
+  pool.slice(0,RICH_COUNT).forEach(h=>{
+    const icon=L.divIcon({
+      className:'',
+      html:`<div class="pin rich">
+        <div class="pinCard">
+          <div class="pinThumb">${photoTag(h,80,80)}</div>
+          <div class="pinMeta">
+            <div class="pinName">${h.name}</div>
+            <div class="pinPrice">R${h.pricePerNight}</div>
+          </div>
+        </div>
+        <div class="dot"></div>
+      </div>`,
+      iconSize:[0,0], iconAnchor:[0,0]
+    });
+    L.marker([h.lat,h.lon],{icon}).addTo(markerLayer).on('click',()=>openPackageModal(h));
+  });
+  pool.slice(RICH_COUNT,20).forEach(h=>{
+    const icon=L.divIcon({
+      className:'',
+      html:`<div class="pin plain"><div class="dot small"></div></div>`,
+      iconSize:[0,0], iconAnchor:[0,0]
+    });
+    L.marker([h.lat,h.lon],{icon,title:`${h.name} · R${h.pricePerNight}`}).addTo(markerLayer).on('click',()=>openPackageModal(h));
+  });
+}
+
+// Shared card builder used by both the infinite-scroll belt ("All") and the
+// bounded, radius-filtered belt (specific property type selected above).
+// Swipe-up-to-dismiss: lets the customer flick a card away instead of tapping ×.
+// Only engages once the drag is clearly more vertical than horizontal, so the
+// belt's native left/right scroll is never interrupted.
+function attachSwipeDismiss(card, onDismiss){
+  let startX=0, startY=0, dy=0, dragging=false, pid=null, moved=false;
+  card.addEventListener('pointerdown', e=>{
+    if(e.pointerType==='mouse' && e.button!==0) return;
+    pid=e.pointerId; startX=e.clientX; startY=e.clientY; dy=0; dragging=true; moved=false;
+    card.style.transition='none';
+  });
+  card.addEventListener('pointermove', e=>{
+    if(!dragging || e.pointerId!==pid) return;
+    const dx=e.clientX-startX;
+    const ddy=e.clientY-startY;
+    if(Math.abs(ddy)>10 || Math.abs(dx)>10) moved=true;
+    if(ddy<0 && Math.abs(ddy)>Math.abs(dx)){
+      dy=ddy;
+      const clamped=Math.max(ddy,-130);
+      card.style.transform=`translateY(${clamped}px)`;
+      card.style.opacity=String(Math.max(0.2, 1+clamped/160));
+    }
+  });
+  function endDrag(){
+    if(!dragging) return;
+    dragging=false; pid=null;
+    card.style.transition='transform .18s ease, opacity .18s ease';
+    if(dy<-55){
+      onDismiss();
+    } else {
+      card.style.transform=''; card.style.opacity='';
+    }
+    dy=0;
+  }
+  card.addEventListener('pointerup', endDrag);
+  card.addEventListener('pointercancel', endDrag);
+  card.addEventListener('pointerleave', ()=>{ if(dragging) endDrag(); });
+  // A real drag shouldn't also open the package modal
+  card.addEventListener('click', e=>{ if(moved){ e.stopPropagation(); moved=false; } }, true);
+}
+function makeBeltCard(h, isTop, onDismissed){
+  const c=document.createElement('div');
+  c.className='card';
+  c.innerHTML=`<div class="thumb">${photoTag(h,320,200)}<span class="typeBadge">${h.type}</span>
+      ${isTop?'<span class="matchBadge">★ Best match</span>':''}
+      <button class="dismissBtn" title="Not interested" aria-label="Not interested">×</button></div>
+    <div class="info">
+      <div class="name">${h.name}</div>
+      <div class="rooms">${h.rooms} rooms left</div>
+      <div class="price">R${h.pricePerNight} <span>/ night</span></div>
+    </div>`;
+  c.onclick=()=>openPackageModal(h);
+
+  // BRS Distinguishing Concepts B.2.2 / B.3.1: option is not deleted, it's reprioritised
+  // to the back of the queue (it can resurface later), and the dislike is learned.
+  let dismissed=false;
+  function runDismiss(){
+    if(dismissed) return;
+    dismissed=true;
+    userPrefs.dislikes[h.type]=(userPrefs.dislikes[h.type]||0)+1;
+    dismissedIds.add(h.id);
+    hotelPool=hotelPool.filter(x=>x!==h);
+    hotelPool.push(h); // moved to the back of the queue, not deleted
+    setTimeout(()=>{ c.remove(); onDismissed&&onDismissed(); },150);
+  }
+  c.querySelector('.dismissBtn').onclick=(e)=>{
+    e.stopPropagation();
+    c.style.transition='opacity .15s, transform .15s';
+    c.style.opacity='0'; c.style.transform='translateY(-8px) scale(.95)';
+    runDismiss();
+  };
+  attachSwipeDismiss(c, ()=>{
+    c.style.transition='opacity .18s ease, transform .18s ease';
+    c.style.opacity='0'; c.style.transform='translateY(-140px)';
+    runDismiss();
+  });
+  return c;
+}
+// Bounded render used by the radius-filtered view — a fixed, already-widened
+// result set, re-run through the same priority sort each time it changes.
+function renderBeltCards(list, opts){
+  list.forEach((h,idx)=>{
+    const c=makeBeltCard(h, idx===0, ()=>applyRadiusFilter());
+    beltScroll.appendChild(c);
+  });
+}
+
+function loadMoreBelt(count){
+  if(filterModeActive) return; // radius-filtered view is bounded; it re-renders itself instead
+  count=count||9;
+  if(beltShown>=hotelPool.length-count){
+    hotelPool=hotelPool.concat(genHotels(currentDestKey,20)); // never zero availability — pool is inexhaustible
+  }
+  reprioritiseUnshown(); // re-weight whatever hasn't been shown yet, using latest customer signal
+  const batch=hotelPool.slice(beltShown,beltShown+count);
+  batch.forEach((h,idx)=>{
+    const isTop=(beltShown===0 && idx===0);
+    const c=makeBeltCard(h, isTop, ()=>loadMoreBelt(1)); // backfill exactly one card — never zero availability
+    beltScroll.appendChild(c);
+  });
+  beltShown+=batch.length;
+  beltCount.textContent=`${beltShown} of ∞`;
+}
+beltScroll.addEventListener('scroll',()=>{
+  if(filterModeActive) return;
+  if(beltScroll.scrollLeft+beltScroll.clientWidth > beltScroll.scrollWidth-200){
+    loadMoreBelt();
+  }
+});
+
+/* ============================================================
+   PACKAGE BUILDER MODAL
+============================================================ */
+const modalOverlay=document.getElementById('modalOverlay');
+let activeHotel=null, nights=3, flights=[], selectedFlightIdx=0;
+let transferPrices={t1:0,t2:0,t3:0};
+
+/* ============================================================
+   TRAVEL WALLET, TRAVELLER & ITINERARY (BRS Process 6.0 / value
+   streams M,N,O,P; Distinguishing Concepts C, D, F, G)
+============================================================ */
+let walletBalance=8500;                 // demo starting balance, in-session only
+let paymentMethod='wallet';             // 'wallet' | 'card'
+let travellerName='';                   // blank = "You" (lead guest)
+const myTrips=[];                       // confirmed bookings — backs the Itinerary/Planner view
+const walletTx=[{note:'Starting balance', amount:walletBalance, ts:Date.now()}];
+function fmtR(n){ return 'R '+Math.round(n).toLocaleString(); }
+function walletLine(){ return `R${walletBalance.toLocaleString()} available`; }
+function recordWalletTx(note, amount){
+  walletTx.unshift({note, amount, ts:Date.now()});
+}
+function topUpWallet(amount){
+  if(!amount || amount<=0) return;
+  walletBalance+=amount;
+  recordWalletTx('Top-up · Card •••• 4242', amount); // BRS Value Stream M: deposit via credit card
+  updateWalletChips();
+  renderWalletView();
+}
+
+function openPackageModal(hotel){
+  activeHotel=hotel;
+  notePreference(hotel.type, 3); // "shows interest" — customer weighting learns silently (BRS 2.1)
+  nights=3;
+  document.getElementById('mHeroWrap').innerHTML=photoTag(hotel,600,400);
+  document.getElementById('mHotelName').textContent=hotel.name;
+  document.getElementById('mHotelLoc').textContent=hotel.type+" · "+DESTINATIONS[currentDestKey].city+", "+DESTINATIONS[currentDestKey].country;
+  document.getElementById('nightsVal').textContent=nights;
+
+  document.getElementById('travellerInput').value=travellerName;
+  paymentMethod=walletBalance>0?'wallet':'card';
+  renderPayOptions();
+
+  transferPrices={t1:rand(120,340),t2:rand(150,420),t3:rand(150,420)};
+  document.getElementById('t1p').textContent='R'+transferPrices.t1;
+  document.getElementById('t2p').textContent='R'+transferPrices.t2;
+  document.getElementById('t3p').textContent='R'+transferPrices.t3;
+
+  flights=genFlights();
+  selectedFlightIdx=0;
+  renderFlights();
+  updateTotal();
+  modalOverlay.style.display='flex';
+}
+document.getElementById('closeModal').onclick=()=>modalOverlay.style.display='none';
+document.getElementById('nightsMinus').onclick=()=>{ if(nights>1){nights--; sync();} };
+document.getElementById('nightsPlus').onclick=()=>{ nights++; sync(); };
+document.getElementById('travellerInput').addEventListener('input',e=>{ travellerName=e.target.value.trim(); });
+function sync(){ document.getElementById('nightsVal').textContent=nights; updateTotal(); }
+
+function renderFlights(){
+  const wrap=document.getElementById('flightOptions');
+  wrap.innerHTML='';
+  flights.forEach((f,i)=>{
+    const el=document.createElement('div');
+    el.className='legOption'+(i===selectedFlightIdx?' sel':'');
+    el.innerHTML=`<div><div class="t1">${f.airline} · ${f.time}</div>
+      <div class="t2">${f.duration} · ${f.stops}</div></div>
+      <div class="p">R${f.price}</div>`;
+    el.onclick=()=>{ selectedFlightIdx=i; renderFlights(); updateTotal(); };
+    wrap.appendChild(el);
+  });
+}
+document.getElementById('shuffleFlights').onclick=()=>{
+  flights=flights.concat(genFlights()).sort((a,b)=>a.price-b.price).slice(0,6);
+  renderFlights();
+};
+
+// ---- Payment method (BRS Process 6.0 / Distinguishing Concept D: split payment) ----
+function renderPayOptions(){
+  document.getElementById('payWalletOpt').classList.toggle('sel', paymentMethod==='wallet');
+  document.getElementById('payCardOpt').classList.toggle('sel', paymentMethod==='card');
+  document.getElementById('payWalletOpt').querySelector('.p').textContent=paymentMethod==='wallet'?'●':'○';
+  document.getElementById('payCardOpt').querySelector('.p').textContent=paymentMethod==='card'?'●':'○';
+  document.getElementById('walletBalanceLine').textContent=walletLine();
+}
+document.getElementById('payWalletOpt').onclick=()=>{ paymentMethod='wallet'; renderPayOptions(); updateTotal(); };
+document.getElementById('payCardOpt').onclick=()=>{ paymentMethod='card'; renderPayOptions(); updateTotal(); };
+
+function currentTotal(){
+  const hotelTotal=activeHotel.pricePerNight*nights;
+  const flightTotal=flights[selectedFlightIdx].price;
+  const transferTotal=transferPrices.t1+transferPrices.t2+transferPrices.t3;
+  return {hotelTotal, flightTotal, transferTotal, total:hotelTotal+flightTotal+transferTotal};
+}
+function updateTotal(){
+  const {total}=currentTotal();
+  document.getElementById('totalAmt').textContent=fmtR(total);
+  const note=document.getElementById('paySplitNote');
+  if(paymentMethod==='wallet' && walletBalance<total){
+    const walletPart=Math.max(0,walletBalance);
+    const cardPart=total-walletPart;
+    note.textContent=`Wallet covers ${fmtR(walletPart)} — remaining ${fmtR(cardPart)} will be charged to card automatically.`;
+  } else {
+    note.textContent='';
+  }
+}
+
+document.getElementById('bookBtn').onclick=()=>{
+  notePreference(activeHotel.type, 8); // booking is the strongest customer-preference signal (BRS 3.3)
+  const {hotelTotal, flightTotal, transferTotal, total}=currentTotal();
+  const ref='GRB-'+Math.random().toString(36).slice(2,8).toUpperCase();
+
+  // Payment split logic (BRS 6.2/6.5): allocate wallet funds first, card covers any shortfall
+  let walletUsed=0, cardUsed=0;
+  if(paymentMethod==='wallet'){
+    walletUsed=Math.min(walletBalance,total);
+    cardUsed=total-walletUsed;
+  } else {
+    cardUsed=total;
+  }
+  walletBalance-=walletUsed;
+  if(walletUsed>0) recordWalletTx(`Booking ${ref} · ${DESTINATIONS[currentDestKey].city}`, -walletUsed);
+  const paymentLabel = cardUsed<=0 ? 'Travel Wallet'
+    : walletUsed<=0 ? 'Credit Card'
+    : `Wallet ${fmtR(walletUsed)} + Card ${fmtR(cardUsed)}`;
+  const travellerLabel = travellerName ? travellerName : 'You (lead guest)';
+
+  const trip={
+    ref, destKey:currentDestKey, city:DESTINATIONS[currentDestKey].city, country:DESTINATIONS[currentDestKey].country,
+    hotelName:activeHotel.name, nights, flight:flights[selectedFlightIdx],
+    hotelTotal, flightTotal, transferTotal, total, paymentLabel, traveller:travellerLabel, insurance:false
+  };
+  myTrips.unshift(trip);
+
+  document.getElementById('cRef').textContent=ref;
+  document.getElementById('cDest').textContent=trip.city;
+  document.getElementById('cTraveller').textContent=travellerLabel;
+  document.getElementById('cFlight').textContent=`${trip.flight.airline} · ${trip.flight.time} (R${trip.flight.price})`;
+  document.getElementById('cHotel').textContent=trip.hotelName;
+  document.getElementById('cNights').textContent=nights+' nights ('+fmtR(hotelTotal)+')';
+  document.getElementById('cTransfers').textContent=fmtR(transferTotal);
+  document.getElementById('cPayment').textContent=paymentLabel;
+  document.getElementById('cTotal').textContent=fmtR(total);
+  const addBtn=document.getElementById('addInsuranceBtn');
+  addBtn.textContent='+ Add travel insurance · R150';
+  addBtn.classList.remove('added');
+  addBtn.disabled=false;
+
+  modalOverlay.style.display='none';
+  document.getElementById('confirmOverlay').style.display='flex';
+  updateWalletChips();
+};
+document.getElementById('addInsuranceBtn').onclick=(e)=>{
+  const btn=e.target;
+  if(btn.classList.contains('added')) return;
+  const trip=myTrips[0];
+  if(!trip) return;
+  trip.insurance=true;
+  trip.total+=150;
+  document.getElementById('cTotal').textContent=fmtR(trip.total);
+  btn.textContent='✓ Travel insurance added';
+  btn.classList.add('added');
+  btn.disabled=true;
+};
+document.getElementById('doneBtn').onclick=()=>{
+  document.getElementById('confirmOverlay').style.display='none';
+  document.getElementById('backBtn').click();
+};
+document.getElementById('viewTripsBtn').onclick=()=>{
+  document.getElementById('confirmOverlay').style.display='none';
+  showTripsView();
+};
+
+// ---- Itinerary / My Trips (BRS Value Streams O/P; Distinguishing Concept F) ----
+function updateWalletChips(){
+  const line=`💳 R${walletBalance.toLocaleString()}`;
+  ['walletChipGlobe','walletChipMap','walletChipTrips'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.textContent=line;
+  });
+}
+function renderTripsList(){
+  const list=document.getElementById('tripsList');
+  list.innerHTML='';
+  if(!myTrips.length){
+    list.innerHTML='<div id="tripsEmpty">No trips yet — spin the globe or search a destination to start planning.</div>';
+    return;
+  }
+  myTrips.forEach(t=>{
+    const c=document.createElement('div');
+    c.className='tripCard';
+    c.innerHTML=`<div class="top">
+        <div><div class="dest">${t.city}, ${t.country}</div><div class="ref">${t.ref} · ${t.traveller}</div></div>
+        <div class="amt">${fmtR(t.total)}</div>
+      </div>
+      <div class="row"><span>Hotel</span><span>${t.hotelName} · ${t.nights} nights</span></div>
+      <div class="row"><span>Flight</span><span>${t.flight.airline} · ${t.flight.time}</span></div>
+      <div class="row"><span>Paid with</span><span>${t.paymentLabel}</span></div>
+      ${t.insurance?'<div class="badge">✓ Travel insurance</div>':''}`;
+    list.appendChild(c);
+  });
+}
+function showTripsView(){
+  updateWalletChips();
+  renderTripsList();
+  document.getElementById('tripsView').style.display='flex';
+  globeUI.style.display='none';
+  mapView.style.display='none';
+  document.querySelector('.hint').style.display='none';
+}
+function hideTripsView(){
+  document.getElementById('tripsView').style.display='none';
+  if(currentDestKey && mapView.style.display==='none'){
+    globeUI.style.display='flex';
+    document.querySelector('.hint').style.display='block';
+  } else if(currentDestKey){
+    mapView.style.display='flex';
+  } else {
+    globeUI.style.display='flex';
+    document.querySelector('.hint').style.display='block';
+  }
+}
+document.getElementById('tripsBtnGlobe').onclick=showTripsView;
+document.getElementById('tripsBtnMap').onclick=showTripsView;
+document.getElementById('tripsBackBtn').onclick=hideTripsView;
+
+// ---- Travel Wallet view: balance + top-up + activity (BRS Process 6.0, Value Streams M/N) ----
+function timeAgo(ts){
+  const mins=Math.max(0, Math.round((Date.now()-ts)/60000));
+  if(mins<1) return 'just now';
+  if(mins<60) return mins+'m ago';
+  const hrs=Math.round(mins/60);
+  if(hrs<24) return hrs+'h ago';
+  return Math.round(hrs/24)+'d ago';
+}
+function renderWalletView(){
+  document.getElementById('walletBigAmt').textContent=fmtR(walletBalance);
+  updateWalletChips();
+  const list=document.getElementById('walletTxList');
+  list.innerHTML='';
+  if(!walletTx.length){
+    list.innerHTML='<div id="txEmpty">No activity yet.</div>';
+    return;
+  }
+  walletTx.forEach(tx=>{
+    const row=document.createElement('div');
+    row.className='txRow';
+    row.innerHTML=`<div class="txNote">${tx.note}<span class="txTime">${timeAgo(tx.ts)}</span></div>
+      <div class="txAmt ${tx.amount>=0?'pos':'neg'}">${tx.amount>=0?'+':'−'}${fmtR(Math.abs(tx.amount))}</div>`;
+    list.appendChild(row);
+  });
+}
+function openWallet(){
+  renderWalletView();
+  document.getElementById('walletOverlay').style.display='flex';
+}
+function closeWallet(){
+  document.getElementById('walletOverlay').style.display='none';
+}
+document.getElementById('walletChipGlobe').onclick=openWallet;
+document.getElementById('walletChipMap').onclick=openWallet;
+document.getElementById('walletChipTrips').onclick=openWallet;
+document.getElementById('closeWallet').onclick=closeWallet;
+document.getElementById('walletOverlay').addEventListener('click',e=>{
+  if(e.target.id==='walletOverlay') closeWallet();
+});
+document.querySelectorAll('.topUpChip').forEach(btn=>{
+  btn.onclick=()=>topUpWallet(parseInt(btn.dataset.amt,10));
+});
+document.getElementById('customTopUpBtn').onclick=()=>{
+  const input=document.getElementById('customTopUpInput');
+  const amt=Math.round(parseFloat(input.value));
+  if(amt>0){ topUpWallet(amt); input.value=''; }
+};
+document.getElementById('customTopUpInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter') document.getElementById('customTopUpBtn').click();
+});
+
+updateWalletChips();
+</script>
+</body>
+</html>
