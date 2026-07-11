@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 External dependencies loaded from CDN in `index.html`: Leaflet 1.9.4 (destination map/tiles), the Supabase JS SDK v2, and per-hotel LoremFlickr photos with a Picsum fallback (`photoTag()`).
 
-Flight/hotel inventory is still procedurally generated mock data (see Architecture below) — Sabre GDS integration is planned but not yet wired up (blocked on a Sabre Dev Studio sandbox account).
+Flight/hotel inventory is still procedurally generated mock data (see Architecture below). The plan is Sabre for flights (Bargain Finder Max for search, EnhancedAirBook for PNR creation) and Booking.com Partner/Demand API for hotels — chosen over routing hotels through Sabre too, since Sabre's hotel content/booking certification is a separate, weaker path than its flight product. Both are blocked on the respective partner accounts; see the edge functions below for the current seams.
 
 ## Backend (Supabase)
 
@@ -28,11 +28,12 @@ In `index.html`, `loadWalletAndTrips()` re-fetches wallet + transactions + booki
 
 Client-side `SUPABASE_URL`/`SUPABASE_ANON_KEY` in `index.html` are the anon key — safe to expose, since every table relies on RLS + the RPCs above rather than trusting the client.
 
-### Sabre edge function (not yet wired into the frontend)
+### Flight/hotel edge functions (not yet wired into the frontend)
 
-An edge function, `sabre-flight-search`, is deployed on the Graba Global project as the intended seam for real Sabre GDS flight search — it does the Sabre OAuth2 token exchange when `SABRE_CLIENT_ID`/`SABRE_CLIENT_SECRET` secrets are set, and currently throws a clear "not implemented" error past that point (the real Bargain Finder Max request/response mapping needs to be verified against Sabre Dev Studio's live docs before writing it — don't trust a schema written from memory). Until then it returns mock flights in the same shape `index.html`'s local `genFlights()` produces.
+Two edge functions are deployed on the Graba Global project as seams for real inventory — **neither is called by the frontend yet**; `index.html` still uses its local `genFlights()`/`genHotels()` mocks directly. That's deliberate, not an oversight: this project was built in a sandboxed environment that couldn't reach the Supabase project's own HTTP endpoint (only the Supabase MCP tools were reachable), so neither function's invocation path was ever tested end-to-end from a browser. Swapping a verified-working local mock for an unverified network call isn't a safe default — wire them in (`sb.functions.invoke(...)`) once you can verify each works in a real browser.
 
-**The frontend still calls local `genFlights()` directly and does not invoke this edge function.** That's deliberate, not an oversight: this project was built in a sandboxed environment that couldn't reach the Supabase project's own HTTP endpoint (only the Supabase MCP tools were reachable), so the edge function's invocation path was never actually tested end-to-end. Wire `openPackageModal`/`shuffleFlights` to call it (via `sb.functions.invoke('sabre-flight-search', ...)`) once you can verify it works in a real browser — swapping a working local mock for an unverified network call isn't a safe default.
+- **`sabre-flight-search`** — does the Sabre OAuth2 token exchange when `SABRE_CLIENT_ID`/`SABRE_CLIENT_SECRET` secrets are set (this token-exchange pattern is long-stable and well-documented, so it's implemented with reasonable confidence), then throws a clear "not implemented" error past that point — the real Bargain Finder Max request/response mapping needs to be verified against Sabre Dev Studio's live docs before writing it, not assumed from memory. Falls back to mock flights (`genFlights()`-shaped) when no credentials are set. Booking a selected flight into a PNR would additionally need EnhancedAirBook, not yet stubbed anywhere.
+- **`booking-hotel-search`** — same pattern, lower confidence: reads `BOOKING_API_KEY`, but *both* the auth flow and the request/response shape are unverified (Booking.com has multiple partner API generations — the older Affiliate XML API vs. the newer Demand API — and this was written with no access to their current docs, so don't trust `callBookingSearch()`'s shape at all). Falls back to mock hotels shaped like `{ id, name, type, pricePerNight, rating, currency, lat, lon }`.
 
 ## Running it
 
