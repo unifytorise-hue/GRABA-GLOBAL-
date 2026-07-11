@@ -266,11 +266,47 @@
     background:transparent;color:#fff;font-size:13px;cursor:pointer;}
   #countryChipExplore{flex:1;padding:10px 12px;border:none;border-radius:10px;
     background:linear-gradient(135deg,var(--glow),var(--purple));color:#fff;font-weight:700;font-size:13px;cursor:pointer;}
+
+  /* ---------- AUTH GATE ---------- */
+  #authOverlay{position:fixed;inset:0;z-index:60;background:var(--ink);display:none;
+    align-items:center;justify-content:center;padding:24px;}
+  #authCard{width:100%;max-width:340px;}
+  #authCard .brand{justify-content:center;margin-bottom:26px;}
+  #authTitle{font-size:19px;font-weight:800;text-align:center;color:#fff;}
+  #authSub{font-size:12.5px;color:var(--text-dim);text-align:center;margin:4px 0 22px;}
+  .authInput{width:100%;background:rgba(255,255,255,0.08);border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;color:#fff;font-size:14px;font-family:inherit;margin-bottom:10px;outline:none;box-sizing:border-box;}
+  .authInput::placeholder{color:rgba(255,255,255,.4);}
+  #authError{color:#ff8a8a;font-size:12px;min-height:16px;margin:2px 0 10px;text-align:center;}
+  #authSubmitBtn{width:100%;background:linear-gradient(135deg,var(--glow),var(--purple));border:none;color:#fff;
+    padding:13px;border-radius:12px;font-weight:800;font-size:14px;cursor:pointer;margin-bottom:12px;}
+  #authSubmitBtn:disabled{opacity:.6;cursor:default;}
+  #authToggleBtn{display:block;width:100%;background:none;border:none;color:var(--text-dim);font-size:12.5px;
+    cursor:pointer;text-decoration:underline;text-align:center;}
+  #signOutRow{text-align:center;padding:14px 0 6px;}
+  #signOutBtn{background:none;border:none;color:#999;font-size:11.5px;text-decoration:underline;cursor:pointer;}
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 </head>
 <body>
 <div id="app">
+
+  <!-- ================= AUTH GATE ================= -->
+  <div id="authOverlay">
+    <div id="authCard">
+      <div class="brand">
+        <div class="mark">G</div>
+        <div class="name">Graba</div>
+      </div>
+      <div id="authTitle">Sign in</div>
+      <div id="authSub">Making Travel Simple</div>
+      <input id="authEmail" class="authInput" type="email" placeholder="Email" autocomplete="email">
+      <input id="authPassword" class="authInput" type="password" placeholder="Password" autocomplete="current-password">
+      <div id="authError"></div>
+      <button id="authSubmitBtn">Sign in</button>
+      <button id="authToggleBtn">Need an account? Sign up</button>
+    </div>
+  </div>
 
   <!-- ================= GLOBE VIEW ================= -->
   <canvas id="globeCanvas"></canvas>
@@ -367,6 +403,7 @@
         <div class="lab">Recent activity</div>
         <div id="walletTxList"></div>
       </div>
+      <div id="signOutRow"><button id="signOutBtn">Sign out</button></div>
     </div>
   </div>
 
@@ -467,6 +504,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 /* ============================================================
    DATA — mock destination / hotel / flight inventory.
@@ -1567,25 +1605,101 @@ let activeHotel=null, nights=3, flights=[], selectedFlightIdx=0;
 let transferPrices={t1:0,t2:0,t3:0};
 
 /* ============================================================
+   SUPABASE BACKEND — auth, wallet & bookings live in the
+   "Graba Global" Supabase project. Wallet balance mutations go
+   through security-definer RPCs (top_up_wallet / book_trip /
+   add_insurance) so the client never writes balances directly —
+   RLS only grants SELECT on wallets/bookings.
+============================================================ */
+const SUPABASE_URL='https://mpkklamqfjwfuciuuxae.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1wa2tsYW1xZmp3ZnVjaXV1eGFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3ODEyMTcsImV4cCI6MjA5OTM1NzIxN30.ouVgsSEouR92CUqd5a7KZC-8_jBWQdnfQGgjNZGAMME';
+const sb=window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let currentUser=null;
+
+const authOverlay=document.getElementById('authOverlay');
+let authMode='signin';
+function setAuthError(msg){ document.getElementById('authError').textContent=msg||''; }
+function renderAuthMode(){
+  document.getElementById('authTitle').textContent = authMode==='signin' ? 'Sign in' : 'Create your account';
+  document.getElementById('authSubmitBtn').textContent = authMode==='signin' ? 'Sign in' : 'Sign up';
+  document.getElementById('authToggleBtn').textContent = authMode==='signin' ? "Need an account? Sign up" : "Already have an account? Sign in";
+}
+document.getElementById('authToggleBtn').onclick=()=>{
+  authMode = authMode==='signin' ? 'signup' : 'signin';
+  setAuthError('');
+  renderAuthMode();
+};
+document.getElementById('authSubmitBtn').onclick=async()=>{
+  const email=document.getElementById('authEmail').value.trim();
+  const password=document.getElementById('authPassword').value;
+  if(!email || !password){ setAuthError('Enter an email and password.'); return; }
+  const btn=document.getElementById('authSubmitBtn');
+  btn.disabled=true;
+  setAuthError('');
+  try{
+    const {error} = authMode==='signin'
+      ? await sb.auth.signInWithPassword({email,password})
+      : await sb.auth.signUp({email,password});
+    if(error) throw error;
+    if(authMode==='signup'){ setAuthError("Check your email to confirm your account, then sign in."); }
+  }catch(e){
+    setAuthError(e.message || 'Something went wrong.');
+  }finally{
+    btn.disabled=false;
+  }
+};
+document.getElementById('authPassword').addEventListener('keydown',e=>{
+  if(e.key==='Enter') document.getElementById('authSubmitBtn').click();
+});
+document.getElementById('signOutBtn').onclick=async()=>{ await sb.auth.signOut(); };
+
+sb.auth.onAuthStateChange((_event, session)=>{
+  currentUser=session?.user || null;
+  if(currentUser){
+    authOverlay.style.display='none';
+    loadWalletAndTrips();
+  } else {
+    authOverlay.style.display='flex';
+  }
+});
+
+/* ============================================================
    TRAVEL WALLET, TRAVELLER & ITINERARY (BRS Process 6.0 / value
    streams M,N,O,P; Distinguishing Concepts C, D, F, G)
 ============================================================ */
-let walletBalance=8500;                 // demo starting balance, in-session only
+let walletBalance=0;                    // mirrors the wallets row for the signed-in user
 let paymentMethod='wallet';             // 'wallet' | 'card'
 let travellerName='';                   // blank = "You" (lead guest)
-const myTrips=[];                       // confirmed bookings — backs the Itinerary/Planner view
-const walletTx=[{note:'Starting balance', amount:walletBalance, ts:Date.now()}];
+let myTrips=[];                         // confirmed bookings — backs the Itinerary/Planner view
+let walletTx=[];                        // wallet_transactions ledger
 function fmtR(n){ return 'R '+Math.round(n).toLocaleString(); }
 function walletLine(){ return `R${walletBalance.toLocaleString()} available`; }
-function recordWalletTx(note, amount){
-  walletTx.unshift({note, amount, ts:Date.now()});
-}
-function topUpWallet(amount){
-  if(!amount || amount<=0) return;
-  walletBalance+=amount;
-  recordWalletTx('Top-up · Card •••• 4242', amount); // BRS Value Stream M: deposit via credit card
+
+async function loadWalletAndTrips(){
+  const [{data:walletRow}, {data:txRows}, {data:bookingRows}] = await Promise.all([
+    sb.from('wallets').select('*').single(),
+    sb.from('wallet_transactions').select('*').order('created_at',{ascending:false}).limit(50),
+    sb.from('bookings').select('*').order('created_at',{ascending:false})
+  ]);
+  walletBalance = walletRow ? Number(walletRow.balance) : 0;
+  walletTx = (txRows||[]).map(r=>({note:r.note, amount:Number(r.amount), ts:new Date(r.created_at).getTime()}));
+  myTrips = (bookingRows||[]).map(r=>({
+    id:r.id, ref:r.booking_ref, city:r.destination_city, country:r.destination_country,
+    hotelName:r.details?.hotelName, nights:r.nights, flight:r.details?.flight,
+    hotelTotal:r.details?.hotelTotal, flightTotal:r.details?.flightTotal, transferTotal:r.details?.transferTotal,
+    total:Number(r.total_amount), paymentLabel:r.details?.paymentLabel,
+    traveller:r.traveller_name || 'You (lead guest)', insurance:!!r.details?.insurance
+  }));
   updateWalletChips();
   renderWalletView();
+  renderTripsList();
+}
+
+async function topUpWallet(amount){
+  if(!amount || amount<=0) return;
+  const {error} = await sb.rpc('top_up_wallet', {p_amount:amount}); // BRS Value Stream M: deposit via credit card
+  if(error){ alert(error.message); return; }
+  await loadWalletAndTrips();
 }
 
 function openPackageModal(hotel){
@@ -1666,10 +1780,10 @@ function updateTotal(){
   }
 }
 
-document.getElementById('bookBtn').onclick=()=>{
+document.getElementById('bookBtn').onclick=async()=>{
   notePreference(activeHotel.type, 8); // booking is the strongest customer-preference signal (BRS 3.3)
   const {hotelTotal, flightTotal, transferTotal, total}=currentTotal();
-  const ref='GRB-'+Math.random().toString(36).slice(2,8).toUpperCase();
+  const flight=flights[selectedFlightIdx];
 
   // Payment split logic (BRS 6.2/6.5): allocate wallet funds first, card covers any shortfall
   let walletUsed=0, cardUsed=0;
@@ -1679,25 +1793,32 @@ document.getElementById('bookBtn').onclick=()=>{
   } else {
     cardUsed=total;
   }
-  walletBalance-=walletUsed;
-  if(walletUsed>0) recordWalletTx(`Booking ${ref} · ${DESTINATIONS[currentDestKey].city}`, -walletUsed);
   const paymentLabel = cardUsed<=0 ? 'Travel Wallet'
     : walletUsed<=0 ? 'Credit Card'
     : `Wallet ${fmtR(walletUsed)} + Card ${fmtR(cardUsed)}`;
   const travellerLabel = travellerName ? travellerName : 'You (lead guest)';
 
-  const trip={
-    ref, destKey:currentDestKey, city:DESTINATIONS[currentDestKey].city, country:DESTINATIONS[currentDestKey].country,
-    hotelName:activeHotel.name, nights, flight:flights[selectedFlightIdx],
-    hotelTotal, flightTotal, transferTotal, total, paymentLabel, traveller:travellerLabel, insurance:false
-  };
-  myTrips.unshift(trip);
+  const bookBtn=document.getElementById('bookBtn');
+  bookBtn.disabled=true;
+  const {data:booking, error}=await sb.rpc('book_trip', {
+    p_destination_city:DESTINATIONS[currentDestKey].city,
+    p_destination_country:DESTINATIONS[currentDestKey].country,
+    p_traveller_name:travellerLabel,
+    p_nights:nights,
+    p_payment_method: walletUsed>0 && cardUsed>0 ? 'split' : (walletUsed>0 ? 'wallet' : 'card'),
+    p_total_amount:total,
+    p_wallet_portion: walletUsed>0 ? walletUsed : null,
+    p_details:{hotelName:activeHotel.name, flight, hotelTotal, flightTotal, transferTotal, paymentLabel, insurance:false}
+  });
+  bookBtn.disabled=false;
+  if(error){ alert(error.message); return; }
+  await loadWalletAndTrips();
 
-  document.getElementById('cRef').textContent=ref;
-  document.getElementById('cDest').textContent=trip.city;
+  document.getElementById('cRef').textContent=booking.booking_ref;
+  document.getElementById('cDest').textContent=DESTINATIONS[currentDestKey].city;
   document.getElementById('cTraveller').textContent=travellerLabel;
-  document.getElementById('cFlight').textContent=`${trip.flight.airline} · ${trip.flight.time} (R${trip.flight.price})`;
-  document.getElementById('cHotel').textContent=trip.hotelName;
+  document.getElementById('cFlight').textContent=`${flight.airline} · ${flight.time} (R${flight.price})`;
+  document.getElementById('cHotel').textContent=activeHotel.name;
   document.getElementById('cNights').textContent=nights+' nights ('+fmtR(hotelTotal)+')';
   document.getElementById('cTransfers').textContent=fmtR(transferTotal);
   document.getElementById('cPayment').textContent=paymentLabel;
@@ -1706,22 +1827,23 @@ document.getElementById('bookBtn').onclick=()=>{
   addBtn.textContent='+ Add travel insurance · R150';
   addBtn.classList.remove('added');
   addBtn.disabled=false;
+  addBtn.dataset.bookingId=booking.id;
 
   modalOverlay.style.display='none';
   document.getElementById('confirmOverlay').style.display='flex';
-  updateWalletChips();
 };
-document.getElementById('addInsuranceBtn').onclick=(e)=>{
+document.getElementById('addInsuranceBtn').onclick=async(e)=>{
   const btn=e.target;
   if(btn.classList.contains('added')) return;
-  const trip=myTrips[0];
-  if(!trip) return;
-  trip.insurance=true;
-  trip.total+=150;
-  document.getElementById('cTotal').textContent=fmtR(trip.total);
+  const bookingId=btn.dataset.bookingId;
+  if(!bookingId) return;
+  btn.disabled=true;
+  const {data:booking, error}=await sb.rpc('add_insurance', {p_booking_id:bookingId});
+  if(error){ alert(error.message); btn.disabled=false; return; }
+  document.getElementById('cTotal').textContent=fmtR(Number(booking.total_amount));
   btn.textContent='✓ Travel insurance added';
   btn.classList.add('added');
-  btn.disabled=true;
+  await loadWalletAndTrips();
 };
 document.getElementById('doneBtn').onclick=()=>{
   document.getElementById('confirmOverlay').style.display='none';
