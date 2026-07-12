@@ -431,6 +431,12 @@
       </div>
 
       <div class="sec">
+        <div class="lab">Flying from</div>
+        <select id="originSelect" style="width:100%;background:#faf6ff;border:1.5px solid #eee;border-radius:12px;
+          padding:10px 12px;font-size:13.5px;font-family:inherit;color:var(--ink);"></select>
+      </div>
+
+      <div class="sec">
         <div class="lab">Flight · from your city</div>
         <div id="flightOptions"></div>
         <button class="shuffleBtn" id="shuffleFlights">↻ Show more flight options</button>
@@ -1604,6 +1610,30 @@ const modalOverlay=document.getElementById('modalOverlay');
 let activeHotel=null, nights=3, flights=[], selectedFlightIdx=0;
 let transferPrices={t1:0,t2:0,t3:0};
 
+// "Flying from" — was previously hardcoded/absent (see CLAUDE.md's old
+// "Known gap — origin airport" note). Defaults to Johannesburg (JNB),
+// matching sabre-flight-search's own fallback default. Not yet passed to
+// any real flight search call since the frontend doesn't call
+// sabre-flight-search at all yet (Sabre wiring is separately pending) —
+// this just makes the origin a real, user-editable piece of state instead
+// of nonexistent.
+let originCode='JNB', originCity='Johannesburg';
+(function populateOriginSelect(){
+  const sel=document.getElementById('originSelect');
+  Object.values(DESTINATIONS).forEach(d=>{
+    const opt=document.createElement('option');
+    opt.value=d.code;
+    opt.textContent=`${d.city} (${d.code})`;
+    if(d.code===originCode) opt.selected=true;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change', e=>{
+    originCode=e.target.value;
+    const d=Object.values(DESTINATIONS).find(x=>x.code===originCode);
+    originCity = d ? d.city : originCode;
+  });
+})();
+
 /* ============================================================
    SUPABASE BACKEND — auth, wallet & bookings live in the
    "Graba Global" Supabase project. Wallet balance mutations go
@@ -1658,6 +1688,7 @@ sb.auth.onAuthStateChange((_event, session)=>{
   if(currentUser){
     authOverlay.style.display='none';
     loadWalletAndTrips();
+    handleStripeRedirect();
   } else {
     authOverlay.style.display='flex';
   }
@@ -1695,11 +1726,38 @@ async function loadWalletAndTrips(){
   renderTripsList();
 }
 
+// BRS Value Stream M: deposit via credit card — real money via Stripe
+// Checkout. The wallet is credited only by the stripe-webhook edge function
+// after Stripe confirms payment, never directly from here; this just starts
+// the checkout and sends the browser to Stripe's hosted page.
 async function topUpWallet(amount){
   if(!amount || amount<=0) return;
-  const {error} = await sb.rpc('top_up_wallet', {p_amount:amount}); // BRS Value Stream M: deposit via credit card
-  if(error){ alert(error.message); return; }
-  await loadWalletAndTrips();
+  const {data:{session}} = await sb.auth.getSession();
+  if(!session){ alert('Please sign in again.'); return; }
+  const {data, error} = await sb.functions.invoke('create-checkout-session', {
+    body: {amount},
+    headers: {Authorization: `Bearer ${session.access_token}`}
+  });
+  if(error || !data?.url){ alert((error && error.message) || 'Could not start checkout.'); return; }
+  window.location.href = data.url;
+}
+
+// Handle the redirect back from Stripe Checkout (?topup=success/cancelled).
+// The webhook usually credits the wallet before the browser gets back here,
+// but there can be a race, so retry loadWalletAndTrips briefly.
+async function handleStripeRedirect(){
+  const params=new URLSearchParams(window.location.search);
+  const topup=params.get('topup');
+  if(!topup) return;
+  history.replaceState(null,'',window.location.pathname);
+  if(topup==='cancelled'){ return; }
+  if(topup==='success'){
+    for(let i=0;i<5;i++){
+      await new Promise(r=>setTimeout(r,1200));
+      await loadWalletAndTrips();
+    }
+    openWallet();
+  }
 }
 
 function openPackageModal(hotel){
