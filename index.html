@@ -641,6 +641,56 @@ function genHotels(destKey,count){
   }
   return list;
 }
+
+/* ============================================================
+   REAL HOTEL SEARCH (SerpApi via the booking-hotel-search edge
+   function) — adapts its {id,name,type,pricePerNight,rating,
+   currency,lat,lon} shape into the full internal hotel shape the
+   rest of the app expects (x/y percentage-space for the search-
+   radius simulation, scene for the illustrated/photo card, rooms/
+   supplierPriority/profitPct which are Graba's own invented
+   business-logic weights with no real-world source, so still
+   randomised even for real hotels). Falls back to genHotels() mock
+   data on any failure — matches the app's own "never zero
+   availability" principle, and means a Sabre/SerpApi outage never
+   breaks the map view.
+   NOTE: not tested end-to-end in a real browser — this was built in
+   a sandbox that couldn't reach the Supabase project's own HTTP
+   endpoint. Verify a real showMapView() call before relying on it.
+============================================================ */
+function adaptSerpApiHotel(h, dest){
+  const lat = (typeof h.lat==='number' && Number.isFinite(h.lat)) ? h.lat : dest.lat;
+  const lon = (typeof h.lon==='number' && Number.isFinite(h.lon)) ? h.lon : dest.lon;
+  const x = Math.max(4, Math.min(96, 50 + ((lon-dest.lon)/0.06)*50));
+  const y = Math.max(4, Math.min(96, 50 - ((lat-dest.lat)/0.045)*50));
+  return {
+    id: h.id || ('serpapi-'+Math.random().toString(36).slice(2,8)),
+    name: h.name || 'Unnamed property',
+    type: h.type || 'Hotel',
+    rooms: rand(1,9),
+    pricePerNight: (typeof h.pricePerNight==='number' && Number.isFinite(h.pricePerNight)) ? h.pricePerNight : rand(950,4200),
+    scene: SCENES[seedNum(h.id||h.name||'')%SCENES.length],
+    x, y, lat, lon,
+    rating: (typeof h.rating==='number' && Number.isFinite(h.rating)) ? h.rating : (rand(28,50)/10),
+    supplierPriority: rand(1,5),
+    profitPct: rand(3,22)/100
+  };
+}
+async function fetchHotels(destKey, count){
+  const dest=DESTINATIONS[destKey];
+  try{
+    const {data, error} = await sb.functions.invoke('booking-hotel-search', {
+      body: { query: `${dest.city}, ${dest.country}`, nights: 3, count }
+    });
+    if(error) throw error;
+    if(!data || !Array.isArray(data.hotels) || data.hotels.length===0) throw new Error('booking-hotel-search returned no hotels');
+    return data.hotels.map(h=>adaptSerpApiHotel(h, dest));
+  }catch(e){
+    console.warn('booking-hotel-search failed, falling back to mock hotels:', e);
+    return genHotels(destKey, count);
+  }
+}
+
 function genFlights(){
   const list=[];
   for(let i=0;i<4;i++){
@@ -1388,7 +1438,7 @@ function applyRadiusFilter(){
   beltCount.textContent=`${matches.length} of ${matches.length}`;
 }
 
-function showMapView(){
+async function showMapView(){
   const d=DESTINATIONS[currentDestKey];
   mapView.style.display='flex';
   globeUI.style.display='none';
@@ -1398,8 +1448,6 @@ function showMapView(){
   document.getElementById('destMeta').textContent=`Live · ${d.country} · ${d.code} airport linked`;
   initLeafletMap(d);
 
-  hotelPool=genHotels(currentDestKey,60);
-  hotelPool.sort((a,b)=>computePriorityScore(b)-computePriorityScore(a)); // never zero / always-best-first availability
   activeFilter='All';
   filterModeActive=false;
   dismissedIds=new Set();
@@ -1407,8 +1455,22 @@ function showMapView(){
   renderFilterChips();
   beltShown=0;
   beltScroll.innerHTML='';
+  hotelPool=[];
+  renderPins();
+  beltLabel_setSearching(true);
+
+  const thisRequestDestKey=currentDestKey; // guard against a destination change landing a stale response
+  const hotels=await fetchHotels(currentDestKey,60);
+  if(currentDestKey!==thisRequestDestKey) return;
+
+  hotelPool=hotels;
+  hotelPool.sort((a,b)=>computePriorityScore(b)-computePriorityScore(a)); // never zero / always-best-first availability
+  beltLabel_setSearching(false);
   renderPins();
   loadMoreBelt();
+}
+function beltLabel_setSearching(isSearching){
+  document.getElementById('beltCount').textContent = isSearching ? 'Searching…' : '';
 }
 document.getElementById('backBtn').onclick=()=>{
   mapView.style.display='none';
