@@ -1829,15 +1829,18 @@ async function loadWalletAndTrips(){
   renderTripsList();
 }
 
-// BRS Value Stream M: deposit via credit card — real money via Stripe
-// Checkout. The wallet is credited only by the stripe-webhook edge function
-// after Stripe confirms payment, never directly from here; this just starts
-// the checkout and sends the browser to Stripe's hosted page.
+// BRS Value Stream M: deposit via credit card — real money via Paystack
+// (the active payment processor; see CLAUDE.md — Stripe's functions are
+// still deployed but unused, dormant since the business went with Paystack
+// instead). The wallet is credited only by the paystack-webhook edge
+// function after Paystack confirms payment, never directly from here; this
+// just starts the transaction and sends the browser to Paystack's hosted
+// page.
 async function topUpWallet(amount){
   if(!amount || amount<=0) return;
   const {data:{session}} = await sb.auth.getSession();
   if(!session){ alert('Please sign in again.'); return; }
-  const {data, error} = await sb.functions.invoke('create-checkout-session', {
+  const {data, error} = await sb.functions.invoke('create-paystack-transaction', {
     body: {amount},
     headers: {Authorization: `Bearer ${session.access_token}`}
   });
@@ -1845,16 +1848,21 @@ async function topUpWallet(amount){
   window.location.href = data.url;
 }
 
-// Handle the redirect back from Stripe Checkout (?topup=success/cancelled).
+// Handle the redirect back from Paystack (?topup=paystack&trxref=...&reference=...,
+// Paystack appends trxref/reference to whatever callback_url we gave it).
 // The webhook usually credits the wallet before the browser gets back here,
-// but there can be a race, so retry loadWalletAndTrips briefly.
+// but there can be a race, so retry loadWalletAndTrips briefly. Paystack's
+// callback_url is a single URL for both success and failure — unlike
+// Stripe's separate success/cancel URLs, there's no "cancelled" signal in
+// the URL itself, only whether a reference is present at all.
 async function handleStripeRedirect(){
   const params=new URLSearchParams(window.location.search);
   const topup=params.get('topup');
+  const reference=params.get('reference')||params.get('trxref');
   if(!topup) return;
   history.replaceState(null,'',window.location.pathname);
   if(topup==='cancelled'){ return; }
-  if(topup==='success'){
+  if((topup==='success'||topup==='paystack') && reference){
     for(let i=0;i<5;i++){
       await new Promise(r=>setTimeout(r,1200));
       await loadWalletAndTrips();
