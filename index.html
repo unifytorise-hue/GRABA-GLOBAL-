@@ -71,6 +71,27 @@
   /* ---------- TRAVEL WALLET (BRS Process 6.0; Value Streams M/N; Concept C) ---------- */
   #walletOverlay{position:absolute;inset:0;background:rgba(15,11,21,0.55);display:none;z-index:26;
     align-items:flex-end;}
+  /* ---------- AI CONCIERGE ---------- */
+  #conciergeOverlay{position:absolute;inset:0;background:rgba(15,11,21,0.55);display:none;z-index:27;
+    align-items:flex-end;}
+  #conciergeSheet{width:100%;height:82vh;background:var(--paper);border-radius:22px 22px 0 0;
+    color:var(--ink);animation:slideUp .28s ease;position:relative;display:flex;flex-direction:column;}
+  #conciergeHead{display:flex;align-items:center;gap:10px;padding:16px 50px 12px 20px;border-bottom:1px solid #f0f0f0;}
+  #conciergeHead .t{font-weight:800;font-size:15px;}
+  #conciergeHead .s{font-size:11px;color:#999;}
+  #closeConcierge{position:absolute;top:14px;right:16px;width:32px;height:32px;border-radius:50%;border:none;
+    background:#f3f3f3;color:#555;font-size:14px;cursor:pointer;}
+  #conciergeMessages{flex:1;overflow-y:auto;padding:16px 16px 6px;display:flex;flex-direction:column;gap:10px;}
+  .cMsg{max-width:82%;padding:10px 13px;border-radius:14px;font-size:13.5px;line-height:1.4;white-space:pre-wrap;}
+  .cMsg.user{align-self:flex-end;background:linear-gradient(135deg,var(--glow),var(--purple));color:#fff;border-bottom-right-radius:4px;}
+  .cMsg.assistant{align-self:flex-start;background:#f3f0f8;color:var(--ink);border-bottom-left-radius:4px;}
+  .cMsg.thinking{align-self:flex-start;background:#f3f0f8;color:#999;font-style:italic;}
+  #conciergeInputRow{display:flex;gap:8px;padding:12px 16px 18px;border-top:1px solid #f0f0f0;}
+  #conciergeInput{flex:1;border:1.5px solid #eee;border-radius:14px;padding:11px 14px;font-size:13.5px;
+    font-family:inherit;color:var(--ink);resize:none;}
+  #conciergeSendBtn{background:linear-gradient(135deg,var(--glow),var(--purple));border:none;color:#fff;
+    width:44px;height:44px;border-radius:14px;font-size:16px;cursor:pointer;flex-shrink:0;}
+  #conciergeSendBtn:disabled{opacity:.5;}
   #walletSheet{width:100%;max-height:88vh;background:var(--paper);border-radius:22px 22px 0 0;
     overflow-y:auto;color:var(--ink);animation:slideUp .28s ease;position:relative;}
   #closeWallet{position:absolute;top:14px;right:16px;width:32px;height:32px;border-radius:50%;border:none;
@@ -317,6 +338,7 @@
       <div class="tag">Making Travel Simple</div>
       <span class="walletChip" id="walletChipGlobe">💳 R —</span>
       <button class="tripsBtn" id="tripsBtnGlobe">🧳 My Trips</button>
+      <button class="tripsBtn" id="conciergeBtn">✦ Ask Graba</button>
     </div>
 
     <div class="searchWrap">
@@ -374,6 +396,25 @@
       <span class="walletChip" id="walletChipTrips">💳 R —</span>
     </div>
     <div id="tripsList"></div>
+  </div>
+
+  <!-- ================= AI CONCIERGE ================= -->
+  <div id="conciergeOverlay">
+    <div id="conciergeSheet">
+      <button id="closeConcierge">✕</button>
+      <div class="handle"></div>
+      <div id="conciergeHead">
+        <div>
+          <div class="t">✦ Ask Graba</div>
+          <div class="s">AI concierge · searches flights &amp; hotels, checks your wallet</div>
+        </div>
+      </div>
+      <div id="conciergeMessages"></div>
+      <div id="conciergeInputRow">
+        <textarea id="conciergeInput" rows="1" placeholder="Try 'find me a cheap trip to Zanzibar in September'"></textarea>
+        <button id="conciergeSendBtn">→</button>
+      </div>
+    </div>
   </div>
 
   <!-- ================= TRAVEL WALLET ================= -->
@@ -1821,6 +1862,82 @@ async function handleStripeRedirect(){
     openWallet();
   }
 }
+
+/* ============================================================
+   AI CONCIERGE — chat UI over the concierge-chat edge function
+   (Claude tool-use loop). See that function's file header for the
+   human-in-the-loop guarantee: nothing here can book or charge
+   anything on its own, it only searches and proposes.
+============================================================ */
+let conciergeMessages=[]; // Claude Messages API history — {role, content}
+let conciergeBusy=false;
+
+function conciergeAppendBubble(role, text){
+  const el=document.createElement('div');
+  el.className=`cMsg ${role}`;
+  el.textContent=text;
+  document.getElementById('conciergeMessages').appendChild(el);
+  el.scrollIntoView({block:'end', behavior:'smooth'});
+  return el;
+}
+
+async function sendConciergeMessage(){
+  const input=document.getElementById('conciergeInput');
+  const text=input.value.trim();
+  if(!text || conciergeBusy) return;
+  input.value='';
+  conciergeBusy=true;
+  document.getElementById('conciergeSendBtn').disabled=true;
+
+  conciergeAppendBubble('user', text);
+  conciergeMessages.push({role:'user', content:text});
+  const thinking=conciergeAppendBubble('thinking', 'Searching…');
+
+  try{
+    const {data:{session}} = await sb.auth.getSession();
+    if(!session){ thinking.remove(); conciergeAppendBubble('assistant','Please sign in again.'); return; }
+    const {data, error} = await sb.functions.invoke('concierge-chat', {
+      body:{messages:conciergeMessages},
+      headers:{Authorization:`Bearer ${session.access_token}`}
+    });
+    thinking.remove();
+    if(error || !data){
+      conciergeAppendBubble('assistant', (error && error.message) || "Something went wrong — try again.");
+      return;
+    }
+    if(data.error){
+      conciergeAppendBubble('assistant', `${data.error}${data.detail ? ' — '+JSON.stringify(data.detail).slice(0,200) : ''}`);
+      return;
+    }
+    conciergeMessages = data.messages || conciergeMessages;
+    conciergeAppendBubble('assistant', data.reply || '(no response)');
+  }catch(e){
+    thinking.remove();
+    conciergeAppendBubble('assistant', 'Something went wrong — try again.');
+  }finally{
+    conciergeBusy=false;
+    document.getElementById('conciergeSendBtn').disabled=false;
+  }
+}
+
+function openConcierge(){
+  document.getElementById('conciergeOverlay').style.display='flex';
+  if(!conciergeMessages.length){
+    conciergeAppendBubble('assistant', "Hi! I'm Graba's AI concierge — I can search flights and hotels, check your wallet balance, and put together trip ideas. I can't book or charge anything myself; you'll always confirm bookings in the app. What can I help with?");
+  }
+}
+function closeConcierge(){
+  document.getElementById('conciergeOverlay').style.display='none';
+}
+document.getElementById('conciergeBtn').onclick=openConcierge;
+document.getElementById('closeConcierge').onclick=closeConcierge;
+document.getElementById('conciergeOverlay').addEventListener('click', e=>{
+  if(e.target.id==='conciergeOverlay') closeConcierge();
+});
+document.getElementById('conciergeSendBtn').onclick=sendConciergeMessage;
+document.getElementById('conciergeInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendConciergeMessage(); }
+});
 
 function openPackageModal(hotel){
   activeHotel=hotel;

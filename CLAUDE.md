@@ -29,6 +29,16 @@ In `index.html`, `loadWalletAndTrips()` re-fetches wallet + transactions + booki
 
 Client-side `SUPABASE_URL`/`SUPABASE_ANON_KEY` in `index.html` are the anon key — safe to expose, since every table relies on RLS + the RPCs above rather than trusting the client.
 
+### AI concierge (Claude)
+
+`concierge-chat` is a chat-based "AI travel concierge" — a Claude tool-use loop (Anthropic Messages API) over Graba's own capabilities, surfaced via the "✦ Ask Graba" chip on the globe view (`#conciergeOverlay` in `index.html`, `sendConciergeMessage()`/`openConcierge()`).
+
+- **Tools exposed to Claude**: `search_flights` and `search_hotels` (server-to-server HTTP calls to the sibling `sabre-flight-search`/`booking-hotel-search` edge functions, using the service role key — they inherit those functions' own mock-data fallback behavior), `get_wallet_balance` (direct query), and `propose_booking`.
+- **Guardrail — do not relax without discussion**: `propose_booking` is a pure pass-through that returns a structured proposal for the frontend to render; it does **not** call `book_trip`. Nothing in this function can spend money or create a real booking — the user still has to go through the existing package-builder modal and tap Confirm. This is deliberate: an LLM autonomously committing bookings/payments with no human confirmation step is not a safe default. The system prompt also explicitly tells Claude never to claim something is booked/charged.
+- The frontend keeps the full Claude message history (`conciergeMessages`, including tool-use/tool-result blocks) client-side and resends it each turn — there's no server-side conversation persistence.
+- **Confidence**: HIGH on the Claude/Anthropic API shape itself (Anthropic's own documented API, unlike the Sabre/SerpApi work), but this has **not** been tested end-to-end from this sandbox (no live Anthropic API access here either) — verify a real conversation once `ANTHROPIC_API_KEY` is set.
+- Requires an `ANTHROPIC_API_KEY` edge function secret (console.anthropic.com) and, optionally, `CLAUDE_MODEL` to override the default (`claude-sonnet-5`).
+
 ### Payments (Stripe)
 
 Real money moves through **Stripe Checkout**, wired into the wallet top-up flow (`topUpWallet()` in `index.html`, both the preset chips and the custom-amount input). Two edge functions:
