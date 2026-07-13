@@ -156,41 +156,6 @@
   #profileBtn{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,0.08);
     color:var(--bg);cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px;}
 
-  /* ---------- TRAVEL WALLET ---------- */
-  #walletOverlay{position:absolute;inset:0;background:rgba(15,11,21,0.55);display:none;z-index:26;
-    align-items:flex-end;}
-  #walletSheet{width:100%;max-height:88vh;background:var(--paper);border-radius:22px 22px 0 0;
-    overflow-y:auto;color:var(--ink);animation:slideUp .28s ease;position:relative;}
-  #closeWallet{position:absolute;top:14px;right:16px;width:32px;height:32px;border-radius:50%;border:none;
-    background:#f3f3f3;color:#555;font-size:14px;cursor:pointer;}
-  #walletSheet .handle{width:38px;height:4px;background:rgba(255,255,255,.5);border-radius:4px;margin:10px auto 0;}
-  #walletBalanceHead{padding:26px 20px 18px;text-align:center;background:linear-gradient(135deg,var(--purple),var(--purple-deep));
-    color:#fff;}
-  #walletBalanceHead .lab{font-size:11.5px;text-transform:uppercase;letter-spacing:1px;opacity:.75;margin-bottom:6px;}
-  #walletBalanceHead .amt{font-size:34px;font-weight:800;}
-  #topUpChips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
-  .topUpChip{flex:1 1 calc(50% - 8px);background:#faf6ff;border:1.5px solid #eee;color:var(--purple);
-    font-weight:800;font-size:13px;padding:11px 6px;border-radius:12px;cursor:pointer;}
-  .topUpChip:active{background:#f1e6ff;}
-  #customTopUpRow{display:flex;gap:8px;}
-  #customTopUpRow input{flex:1;border:1.5px solid #eee;border-radius:12px;padding:10px 12px;font-size:13.5px;
-    font-family:inherit;color:var(--ink);}
-  #customTopUpRow button{background:linear-gradient(135deg,var(--glow),var(--purple));border:none;color:#fff;
-    padding:0 18px;border-radius:12px;font-weight:800;font-size:13px;cursor:pointer;}
-  #topUpMethodNote{font-size:11px;color:#999;margin-top:8px;}
-  #walletTxList{display:flex;flex-direction:column;gap:8px;}
-  .txRow{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:8px 0;
-    border-bottom:1px solid #f5f5f5;}
-  .txRow .txNote{color:#777;}
-  .txRow .txNote .txTime{display:block;font-size:10.5px;color:#aaa;}
-  .txRow .txAmt{font-weight:800;}
-  .txRow .txAmt.pos{color:#22c55e;}
-  .txRow .txAmt.neg{color:var(--purple);}
-  #txEmpty{text-align:center;color:#aaa;font-size:12.5px;padding:16px 0;}
-  .walletChip{pointer-events:auto;cursor:pointer;background:rgba(255,255,255,0.06);border:1px solid var(--line);
-    color:var(--text-dim);font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:100px;
-    display:inline-flex;align-items:center;gap:4px;}
-  #mapHeader .walletChip,#tripsHeader .walletChip{background:#faf6ff;border-color:#eee;color:var(--purple);}
   .legalLinks{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 14px;padding:14px 4px 4px;
     border-top:1px solid rgba(255,255,255,0.08);margin-top:10px;}
   .legalLinks a{font-size:10.5px;color:rgba(255,255,255,.5);text-decoration:none;letter-spacing:.3px;}
@@ -683,7 +648,6 @@
          
        </div>
         <div class="rightSlot" id="topBarRight">
-          <button class="walletChip" id="walletChipGlobe">💳 <span id="walletChipGlobeLabel">R —</span></button>
           <button class="tripsBtn" id="authBtnGlobe"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg> <span id="authBtnLabel">Sign in</span></button>
           <button class="tripsBtn" id="tripsBtnGlobe"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9a1 1 0 0 1 1-1z"/><path d="M9 8V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v3"/><path d="M3 13h18"/><path d="M10 13v3"/><path d="M14 13v3"/></svg> My Trips</button>
         </div>
@@ -732,7 +696,6 @@
         <div class="city" id="destCity">—</div>
         <div class="meta"><span class="liveDot"></span><span id="destMeta">Searching live availability…</span></div>
       </div>
-      <button class="walletChip" id="walletChipMap">💳 <span id="walletChipMapLabel">R —</span></button>
       <button class="tripsBtn" id="tripsBtnMap" style="color:var(--ink);border-color:#eee;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
     </div>
     <div id="mapFilters"></div>
@@ -761,7 +724,6 @@
         <div class="mark tripsMark"></div>
         <div class="t">My Trips</div>
       </div>
-      <button class="walletChip" id="walletChipTrips">💳 <span id="walletChipTripsLabel">R —</span></button>
       <button id="profileBtn" title="Profile"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></button>
     </div>
     <div id="tripsList"></div>
@@ -790,36 +752,6 @@
         <a href="legal/terms-of-service.md" target="_blank" rel="noopener">Terms of Service</a>
         <a href="legal/privacy-policy.md" target="_blank" rel="noopener">Privacy Policy</a>
         <a href="legal/refund-policy.md" target="_blank" rel="noopener">Refund Policy</a>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= TRAVEL WALLET ================= -->
-  <div id="walletOverlay">
-    <div id="walletSheet">
-      <button id="closeWallet">✕</button>
-      <div class="handle"></div>
-      <div id="walletBalanceHead">
-        <div class="lab">Travel Wallet balance</div>
-        <div class="amt" id="walletBigAmt">R 0</div>
-      </div>
-      <div class="sec">
-        <div class="lab">Top up</div>
-        <div id="topUpChips">
-          <button class="topUpChip" data-amt="500">+R500</button>
-          <button class="topUpChip" data-amt="1000">+R1,000</button>
-          <button class="topUpChip" data-amt="2500">+R2,500</button>
-          <button class="topUpChip" data-amt="5000">+R5,000</button>
-        </div>
-        <div id="customTopUpRow">
-          <input id="customTopUpInput" type="number" min="1" placeholder="Custom amount" inputmode="numeric">
-          <button id="customTopUpBtn">Add</button>
-        </div>
-        <div id="topUpMethodNote">Top up securely via Paystack — you'll be redirected back here once it's done.</div>
-      </div>
-      <div class="sec">
-        <div class="lab">Recent activity</div>
-        <div id="walletTxList"></div>
       </div>
     </div>
   </div>
@@ -901,15 +833,10 @@
 
       <div class="sec" id="stepPayment">
         <div class="lab">Payment method</div>
-        <div class="legOption sel" id="payWalletOpt">
-          <div><div class="t1">Travel Wallet</div><div class="t2" id="walletBalanceLine">—</div></div>
+        <div class="legOption sel" style="cursor:default;">
+          <div><div class="t1">Credit / Debit Card</div><div class="t2">Secure checkout via Paystack</div></div>
           <div class="p">●</div>
         </div>
-        <div class="legOption" id="payCardOpt">
-          <div><div class="t1">Credit / Debit Card</div><div class="t2">Pay the full amount by card</div></div>
-          <div class="p">○</div>
-        </div>
-        <div class="sub" id="paySplitNote" style="margin-top:4px;"></div>
       </div>
 
       <div id="totalBar">
@@ -961,9 +888,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 /* ============================================================
-   SUPABASE — real backend. Auth, wallet, trips and bookings all
-   live in this project; nothing in this file talks to localStorage
-   for anything account-related (see AUTH GATE below for the one
+   SUPABASE — real backend. Auth, trips and bookings all live in
+   this project; nothing in this file talks to localStorage for
+   anything account-related (see AUTH GATE below for the one
    exception that's deliberately local: Gabriel's thread list, which
    is just UI bookkeeping, not account data).
 ============================================================ */
@@ -975,8 +902,8 @@ let currentUser=null;
 // Auth is on-demand, not a startup gate: browsing/search/hotel details work
 // for anyone, signed in or not (the globe view must never force a sign-in).
 // requireAuth() is the single gate used by anything that actually needs an
-// account — wallet, trips, Gabriel, topping up, and booking itself. Call it
-// right before the action; if it returns false the auth card is shown and
+// account — trips, Gabriel, and booking itself. Call it right before the
+// action; if it returns false the auth card is shown and
 // the caller should stop, letting the user retry the same action once
 // signed in. openAuth/closeAuth just toggle the overlay; the real sign
 // in/up/out logic lives further down, next to the auth form markup.
@@ -997,8 +924,8 @@ function requireAuth(message){
 
 /* ============================================================
    PERSISTENT STATE — localStorage for profile & Gabriel thread UI
-   bookkeeping only. Wallet and trips are real Supabase data — see
-   loadWalletAndTrips() further down.
+   bookkeeping only. Trips are real Supabase data — see loadTrips()
+   further down.
 ============================================================ */
 function triggerHaptic(strength=10){
   // Haptic feedback for mobile (iPhone, Android)
@@ -2825,16 +2752,12 @@ let activeHotel=null, nights=3, flights=[], selectedFlightIdx=0;
 let transferPrices={t1:0,t2:0,t3:0};
 
 /* ============================================================
-   TRAVELLER & ITINERARY — wallet balance, transaction history and
-   bookings are real Supabase data (see loadWalletAndTrips() below);
-   only the local "profile" contact-card form (name/email/phone,
-   used for the WhatsApp confirmation message) still lives in
-   localStorage, since it isn't account data.
+   TRAVELLER & ITINERARY — bookings are real Supabase data (see
+   loadTrips() below); only the local "profile" contact-card form
+   (name/email/phone, used for the WhatsApp confirmation message)
+   still lives in localStorage, since it isn't account data.
 ============================================================ */
-let paymentMethod='wallet';               // 'wallet' | 'card'
 let travellerName='';                     // blank = "You" (lead guest)
-let walletBalance=0;                      // mirrors the wallets row for the signed-in user
-let walletTx=[];                          // wallet_transactions ledger
 const myTrips=[];                         // confirmed bookings — backs the Itinerary/Planner view
 let profile={name:'', email:'', phone:''}; // view/update profile details
 
@@ -2856,57 +2779,9 @@ function loadState(){
 loadState();
 if(profile.name) travellerName=profile.name;
 
-// ---- Real wallet + trips (Supabase) ----
-function walletLine(){ return `R${walletBalance.toLocaleString()} available`; }
-function updateWalletChips(){
-  const line=`R${walletBalance.toLocaleString()}`;
-  ['walletChipGlobeLabel','walletChipMapLabel','walletChipTripsLabel'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.textContent=line;
-  });
-}
-function timeAgo(ts){
-  const mins=Math.max(0, Math.round((Date.now()-ts)/60000));
-  if(mins<1) return 'just now';
-  if(mins<60) return mins+'m ago';
-  const hrs=Math.round(mins/60);
-  if(hrs<24) return hrs+'h ago';
-  return Math.round(hrs/24)+'d ago';
-}
-function renderWalletView(){
-  const bigAmt=document.getElementById('walletBigAmt');
-  if(bigAmt) bigAmt.textContent=fmtR(walletBalance);
-  updateWalletChips();
-  const list=document.getElementById('walletTxList');
-  if(!list) return;
-  list.innerHTML='';
-  if(!walletTx.length){
-    list.innerHTML='<div id="txEmpty">No activity yet.</div>';
-    return;
-  }
-  walletTx.forEach(tx=>{
-    const row=document.createElement('div');
-    row.className='txRow';
-    row.innerHTML=`<div class="txNote">${tx.note}<span class="txTime">${timeAgo(tx.ts)}</span></div>
-      <div class="txAmt ${tx.amount>=0?'pos':'neg'}">${tx.amount>=0?'+':'−'}${fmtR(Math.abs(tx.amount))}</div>`;
-    list.appendChild(row);
-  });
-}
-function openWallet(){
-  renderWalletView();
-  document.getElementById('walletOverlay').style.display='flex';
-}
-function closeWallet(){
-  document.getElementById('walletOverlay').style.display='none';
-}
-async function loadWalletAndTrips(){
-  const [{data:walletRow}, {data:txRows}, {data:bookingRows}] = await Promise.all([
-    sb.from('wallets').select('*').single(),
-    sb.from('wallet_transactions').select('*').order('created_at',{ascending:false}).limit(50),
-    sb.from('bookings').select('*').order('created_at',{ascending:false})
-  ]);
-  walletBalance = walletRow ? Number(walletRow.balance) : 0;
-  walletTx = (txRows||[]).map(r=>({note:r.note, amount:Number(r.amount), ts:new Date(r.created_at).getTime()}));
+// ---- Real trips (Supabase) ----
+async function loadTrips(){
+  const {data:bookingRows} = await sb.from('bookings').select('*').order('created_at',{ascending:false});
   myTrips.length=0;
   myTrips.push(...(bookingRows||[]).map(r=>({
     id:r.id, ref:r.booking_ref, city:r.destination_city, country:r.destination_country,
@@ -2916,66 +2791,36 @@ async function loadWalletAndTrips(){
     traveller:r.traveller_name || 'You (lead guest)', insurance:!!r.details?.insurance,
     cancelled:!!r.details?.cancelled, details:r.details||{}
   })));
-  updateWalletChips();
-  renderWalletView();
   renderTripsList();
 }
 
-// BRS Value Stream M: deposit via credit card — real money via Paystack.
-// The wallet is credited only by the paystack-webhook edge function after
-// Paystack confirms payment, never directly from here; this just starts the
-// transaction and sends the browser to Paystack's hosted page.
-async function topUpWallet(amount){
-  if(!amount || amount<=0) return;
-  if(!requireAuth('Sign in to top up your Travel Wallet')) return;
-  const {data:{session}} = await sb.auth.getSession();
-  if(!session){ alert('Please sign in again.'); return; }
-  const {data, error} = await sb.functions.invoke('create-paystack-transaction', {
-    body: {amount},
-    headers: {Authorization: `Bearer ${session.access_token}`}
-  });
-  if(error || !data?.url){ alert((error && error.message) || 'Could not start checkout.'); return; }
-  window.location.href = data.url;
-}
-
-// Handle the redirect back from Paystack (?topup=paystack&trxref=...&reference=...
-// — Paystack appends trxref/reference to whatever callback_url we gave it).
-// The webhook usually credits the wallet before the browser gets back here,
-// but there can be a race, so retry loadWalletAndTrips briefly.
+// Handle the redirect back from Paystack after a booking payment
+// (?booking=paystack&trxref=...&reference=... — Paystack appends
+// trxref/reference to whatever callback_url create-booking-payment gave
+// it). The booking row itself is only created by the paystack-webhook
+// edge function once Paystack confirms payment — never client-side — so
+// there can be a race between landing back here and the webhook having
+// run; retry loadTrips briefly, then surface the newly-created booking.
 async function handlePaystackRedirect(){
   const params=new URLSearchParams(window.location.search);
-  const topup=params.get('topup');
+  const bookingParam=params.get('booking');
   const reference=params.get('reference')||params.get('trxref');
-  if(!topup) return;
+  if(!bookingParam) return;
   history.replaceState(null,'',window.location.pathname);
-  if(topup==='cancelled'){ return; }
-  if((topup==='success'||topup==='paystack') && reference){
+  if(bookingParam==='cancelled'){ return; }
+  if((bookingParam==='success'||bookingParam==='paystack') && reference){
     for(let i=0;i<5;i++){
       await new Promise(r=>setTimeout(r,1200));
-      await loadWalletAndTrips();
+      await loadTrips();
+      const paid=myTrips.find(t=>t.details?.paymentRef===reference);
+      if(paid){ showBookingConfirmation(paid); return; }
     }
-    openWallet();
+    // Webhook hasn't landed yet after all retries — open My Trips anyway
+    // so the user isn't stuck on a blank screen; the booking will appear
+    // there as soon as the webhook does land.
+    showTripsView();
   }
 }
-document.getElementById('closeWallet').onclick=closeWallet;
-document.getElementById('walletOverlay').addEventListener('click',e=>{
-  if(e.target.id==='walletOverlay') closeWallet();
-});
-document.querySelectorAll('.topUpChip').forEach(btn=>{
-  btn.onclick=()=>topUpWallet(parseInt(btn.dataset.amt,10));
-});
-document.getElementById('customTopUpBtn').onclick=()=>{
-  const input=document.getElementById('customTopUpInput');
-  const amt=Math.round(parseFloat(input.value));
-  if(amt>0){ topUpWallet(amt); input.value=''; }
-};
-document.getElementById('customTopUpInput').addEventListener('keydown',e=>{
-  if(e.key==='Enter') document.getElementById('customTopUpBtn').click();
-});
-const gatedOpenWallet=()=>{ if(requireAuth('Sign in to view your Travel Wallet')) openWallet(); };
-document.getElementById('walletChipGlobe').onclick=gatedOpenWallet;
-document.getElementById('walletChipMap').onclick=gatedOpenWallet;
-document.getElementById('walletChipTrips').onclick=gatedOpenWallet;
 
 function fmtR(n){ return 'R '+Math.round(n).toLocaleString(); }
 function fmtShort(n){
@@ -2997,8 +2842,6 @@ function openPackageModal(hotel){
   document.getElementById('rankToggle').textContent='ⓘ Why this ranks here';
 
   document.getElementById('travellerInput').value=travellerName;
-  paymentMethod=walletBalance>0?'wallet':'card';
-  renderPayOptions();
 
   transferPrices={t1:rand(120,340),t2:rand(150,420),t3:rand(150,420)};
   document.getElementById('t1p').textContent='R'+transferPrices.t1;
@@ -3082,22 +2925,6 @@ document.getElementById('shuffleFlights').onclick=()=>{
   renderFlights();
 };
 
-// ---- Payment method: Travel Wallet (with card fallback for any shortfall) or full card ----
-function renderPayOptions(){
-  const walletOpt=document.getElementById('payWalletOpt');
-  const cardOpt=document.getElementById('payCardOpt');
-  const walletLine_=document.getElementById('walletBalanceLine');
-  if(walletLine_) walletLine_.textContent=walletLine();
-  if(!walletOpt || !cardOpt) return;
-  walletOpt.classList.toggle('sel', paymentMethod==='wallet');
-  walletOpt.querySelector('.p').textContent = paymentMethod==='wallet' ? '●' : '○';
-  cardOpt.classList.toggle('sel', paymentMethod==='card');
-  cardOpt.querySelector('.p').textContent = paymentMethod==='card' ? '●' : '○';
-}
-
-document.getElementById('payWalletOpt').onclick=()=>{ paymentMethod='wallet'; renderPayOptions(); updateTotal(); };
-document.getElementById('payCardOpt').onclick=()=>{ paymentMethod='card'; renderPayOptions(); updateTotal(); };
-
 function currentTotal(){
   const hotelTotal=activeHotel.pricePerNight*nights;
   const flightTotal=flights[selectedFlightIdx].price;
@@ -3115,16 +2942,45 @@ function updateTotal(){
     totalEl.classList.add('pulseTotal');
   }
   lastTotalShown=total;
-  const note=document.getElementById('paySplitNote');
-  if(paymentMethod==='wallet' && walletBalance<total){
-    const walletPart=Math.max(0,walletBalance);
-    const cardPart=total-walletPart;
-    note.textContent=`Wallet covers ${fmtR(walletPart)} — remaining ${fmtR(cardPart)} will be charged to card automatically.`;
-  } else {
-    note.textContent='';
-  }
 }
 
+// Populates and shows the "Trip booked" confirmation screen from a real
+// bookings row (see loadTrips()'s mapping for the shape of `trip`). Used
+// both right after landing back from Paystack (handlePaystackRedirect)
+// and could be reused anywhere else a confirmed booking needs to be shown.
+function showBookingConfirmation(trip){
+  document.getElementById('cRef').textContent=trip.ref;
+  document.getElementById('cDest').textContent=trip.city;
+  document.getElementById('cTraveller').textContent=trip.traveller;
+  document.getElementById('cFlight').textContent=trip.flight ? `${trip.flight.airline} · ${trip.flight.time} (R${trip.flight.price})` : '—';
+  document.getElementById('cHotel').textContent=trip.hotelName || '—';
+  document.getElementById('cNights').textContent=trip.nights+' nights ('+fmtR(trip.hotelTotal||0)+')';
+  document.getElementById('cTransfers').textContent=fmtR(trip.transferTotal||0);
+  document.getElementById('cPayment').textContent=trip.paymentLabel || 'Credit / Debit Card';
+  document.getElementById('cTotal').textContent=fmtR(trip.total);
+  const addBtn=document.getElementById('addInsuranceBtn');
+  if(trip.insurance){
+    addBtn.textContent='✓ Travel insurance added';
+    addBtn.classList.add('added');
+    addBtn.disabled=true;
+  } else {
+    addBtn.textContent='+ Add travel insurance · R150';
+    addBtn.classList.remove('added');
+    addBtn.disabled=false;
+  }
+  addBtn.dataset.bookingId=trip.id;
+
+  modalOverlay.style.display='none';
+  document.getElementById('confirmOverlay').style.display='flex';
+}
+
+// Booking is charged and created server-side only: this starts a Paystack
+// transaction for the full trip total (init transaction client-side,
+// webhook confirms and does the trusted write) and sends the browser to
+// Paystack's hosted checkout. No
+// booking row is created here — paystack-webhook creates it via
+// admin_create_booking once Paystack confirms the charge succeeded, and
+// handlePaystackRedirect picks it up when the browser lands back here.
 document.getElementById('bookBtn').onclick=async()=>{
   // Auth is deferred to this point, not a startup gate (see requireAuth()) —
   // browsing hotels/flights and opening the package builder never requires
@@ -3133,53 +2989,25 @@ document.getElementById('bookBtn').onclick=async()=>{
   notePreference(activeHotel.type, 8); // booking is the strongest customer-preference signal (BRS 3.3)
   const {hotelTotal, flightTotal, transferTotal, total}=currentTotal();
   const flight=flights[selectedFlightIdx];
-
-  // Payment split logic: allocate wallet funds first, card covers any shortfall
-  let walletUsed=0, cardUsed=0;
-  if(paymentMethod==='wallet'){
-    walletUsed=Math.min(walletBalance,total);
-    cardUsed=total-walletUsed;
-  } else {
-    cardUsed=total;
-  }
-  const paymentLabel = cardUsed<=0 ? 'Travel Wallet'
-    : walletUsed<=0 ? 'Credit Card'
-    : `Wallet ${fmtR(walletUsed)} + Card ${fmtR(cardUsed)}`;
   const travellerLabel = travellerName ? travellerName : 'You (lead guest)';
 
   const bookBtn=document.getElementById('bookBtn');
   bookBtn.disabled=true;
-  const {data:booking, error}=await sb.rpc('book_trip', {
-    p_destination_city:DESTINATIONS[currentDestKey].city,
-    p_destination_country:DESTINATIONS[currentDestKey].country,
-    p_traveller_name:travellerLabel,
-    p_nights:nights,
-    p_payment_method: walletUsed>0 && cardUsed>0 ? 'split' : (walletUsed>0 ? 'wallet' : 'card'),
-    p_total_amount:total,
-    p_wallet_portion: walletUsed>0 ? walletUsed : null,
-    p_details:{hotelName:activeHotel.name, flight, hotelTotal, flightTotal, transferTotal, paymentLabel, insurance:false}
+  const {data:{session}} = await sb.auth.getSession();
+  if(!session){ alert('Please sign in again.'); bookBtn.disabled=false; return; }
+  const {data, error} = await sb.functions.invoke('create-booking-payment', {
+    body: {
+      total_amount: total,
+      destination_city: DESTINATIONS[currentDestKey].city,
+      destination_country: DESTINATIONS[currentDestKey].country,
+      traveller_name: travellerLabel,
+      nights,
+      details: {hotelName:activeHotel.name, flight, hotelTotal, flightTotal, transferTotal, paymentLabel:'Credit / Debit Card', insurance:false}
+    },
+    headers: {Authorization: `Bearer ${session.access_token}`}
   });
-  bookBtn.disabled=false;
-  if(error){ alert(error.message); return; }
-  await loadWalletAndTrips();
-
-  document.getElementById('cRef').textContent=booking.booking_ref;
-  document.getElementById('cDest').textContent=DESTINATIONS[currentDestKey].city;
-  document.getElementById('cTraveller').textContent=travellerLabel;
-  document.getElementById('cFlight').textContent=`${flight.airline} · ${flight.time} (R${flight.price})`;
-  document.getElementById('cHotel').textContent=activeHotel.name;
-  document.getElementById('cNights').textContent=nights+' nights ('+fmtR(hotelTotal)+')';
-  document.getElementById('cTransfers').textContent=fmtR(transferTotal);
-  document.getElementById('cPayment').textContent=paymentLabel;
-  document.getElementById('cTotal').textContent=fmtR(total);
-  const addBtn=document.getElementById('addInsuranceBtn');
-  addBtn.textContent='+ Add travel insurance · R150';
-  addBtn.classList.remove('added');
-  addBtn.disabled=false;
-  addBtn.dataset.bookingId=booking.id;
-
-  modalOverlay.style.display='none';
-  document.getElementById('confirmOverlay').style.display='flex';
+  if(error || !data?.url){ alert((error && error.message) || 'Could not start checkout.'); bookBtn.disabled=false; return; }
+  window.location.href = data.url;
 };
 document.getElementById('addInsuranceBtn').onclick=async(e)=>{
   const btn=e.target;
@@ -3192,7 +3020,7 @@ document.getElementById('addInsuranceBtn').onclick=async(e)=>{
   document.getElementById('cTotal').textContent=fmtR(Number(booking.total_amount));
   btn.textContent='✓ Travel insurance added';
   btn.classList.add('added');
-  await loadWalletAndTrips();
+  await loadTrips();
 };
 document.getElementById('doneBtn').onclick=()=>{
   document.getElementById('confirmOverlay').style.display='none';
@@ -3281,7 +3109,7 @@ async function cancelTrip(ref){
   if(!confirm(`Cancel booking ${ref} to ${trip.city}? This can't be undone.`)) return;
   const {error}=await sb.from('bookings').update({details:{...(trip.details||{}), cancelled:true}}).eq('id', trip.id);
   if(error){ alert(error.message || 'Could not cancel this booking.'); return; }
-  await loadWalletAndTrips();
+  await loadTrips();
 }
 let viewBeforeTrips='globe';
 function showTripsView(){
@@ -4187,7 +4015,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
   // script) so the overlay always reflects real auth state, whether it was
   // opened from the header button or from an on-demand gate elsewhere in
   // the app. `message` is an optional custom subtitle for the signed-out
-  // form (e.g. "Sign in to view your Travel Wallet").
+  // form (e.g. "Sign in to complete your booking").
   window.renderAuthAccountView=function(message){
     if(currentUser){
       form.style.display='none';
@@ -4251,7 +4079,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
   // Single source of truth for auth state — never force-shown automatically
   // (see requireAuth() near the top of the main script); this just keeps
   // currentUser, the header label and the account view in sync, and loads
-  // (or clears) the real wallet/trips whenever the session changes.
+  // (or clears) the real trips whenever the session changes.
   sb.auth.onAuthStateChange((_event, session)=>{
     const wasSignedIn=!!currentUser;
     currentUser=session?.user || null;
@@ -4259,11 +4087,11 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
     renderAuthAccountView();
     if(currentUser){
       if(!wasSignedIn) closeAuth();
-      loadWalletAndTrips();
+      loadTrips();
       handlePaystackRedirect();
     } else {
-      walletBalance=0; walletTx=[]; myTrips.length=0;
-      updateWalletChips(); renderWalletView(); renderTripsList();
+      myTrips.length=0;
+      renderTripsList();
     }
   });
 
