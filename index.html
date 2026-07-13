@@ -288,11 +288,13 @@
   #countryChipExplore{flex:1;padding:10px 12px;border:none;border-radius:10px;
     background:linear-gradient(135deg,var(--glow),var(--purple));color:#fff;font-weight:700;font-size:13px;cursor:pointer;}
 
-  /* ---------- AUTH GATE ---------- */
+  /* ---------- AUTH GATE (now on-demand, not a startup blocker) ---------- */
   #authOverlay{position:fixed;inset:0;z-index:60;background:var(--ink);display:none;
     align-items:center;justify-content:center;padding:24px;}
-  #authCard{width:100%;max-width:340px;}
+  #authCard{width:100%;max-width:340px;position:relative;}
   #authCard .brand{justify-content:center;margin-bottom:26px;}
+  #closeAuth{position:absolute;top:-6px;right:-6px;width:32px;height:32px;border-radius:50%;border:none;
+    background:rgba(255,255,255,0.1);color:#fff;font-size:14px;cursor:pointer;}
   #authTitle{font-size:19px;font-weight:800;text-align:center;color:#fff;}
   #authSub{font-size:12.5px;color:var(--text-dim);text-align:center;margin:4px 0 22px;}
   .authInput{width:100%;background:rgba(255,255,255,0.08);border:1px solid var(--line);border-radius:12px;
@@ -306,6 +308,21 @@
     cursor:pointer;text-decoration:underline;text-align:center;}
   #signOutRow{text-align:center;padding:14px 0 6px;}
   #signOutBtn{background:none;border:none;color:#999;font-size:11.5px;text-decoration:underline;cursor:pointer;}
+
+  /* ---------- BURGER MENU ---------- */
+  #burgerBtn{pointer-events:auto;background:rgba(255,255,255,0.08);border:1px solid var(--line);color:#fff;
+    width:34px;height:34px;border-radius:10px;font-size:15px;cursor:pointer;display:flex;align-items:center;
+    justify-content:center;flex-shrink:0;margin-left:auto;}
+  #burgerMenuOverlay{position:absolute;inset:0;background:rgba(15,11,21,0.55);display:none;z-index:28;
+    align-items:flex-end;}
+  #burgerMenuSheet{width:100%;background:var(--paper);border-radius:22px 22px 0 0;color:var(--ink);
+    animation:slideUp .28s ease;position:relative;padding:10px 20px 26px;}
+  #closeBurger{position:absolute;top:14px;right:16px;width:32px;height:32px;border-radius:50%;border:none;
+    background:#f3f3f3;color:#555;font-size:14px;cursor:pointer;}
+  #burgerAccountRow{padding:30px 0 16px;text-align:center;border-bottom:1px solid #f0f0f0;margin-bottom:16px;}
+  #burgerAccountInfo{font-size:13px;color:#777;margin-bottom:14px;word-break:break-all;}
+  #burgerAuthBtn{background:linear-gradient(135deg,var(--glow),var(--purple));border:none;color:#fff;
+    padding:12px 26px;border-radius:12px;font-weight:800;font-size:13.5px;cursor:pointer;}
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 </head>
@@ -315,6 +332,7 @@
   <!-- ================= AUTH GATE ================= -->
   <div id="authOverlay">
     <div id="authCard">
+      <button id="closeAuth">✕</button>
       <div class="brand">
         <div class="mark">G</div>
         <div class="name">Graba</div>
@@ -329,6 +347,18 @@
     </div>
   </div>
 
+  <!-- ================= BURGER MENU ================= -->
+  <div id="burgerMenuOverlay">
+    <div id="burgerMenuSheet">
+      <button id="closeBurger">✕</button>
+      <div class="handle"></div>
+      <div id="burgerAccountRow">
+        <div id="burgerAccountInfo">Not signed in</div>
+        <button id="burgerAuthBtn">Sign in</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ================= GLOBE VIEW ================= -->
   <canvas id="globeCanvas"></canvas>
   <div id="globeUI">
@@ -339,6 +369,7 @@
       <span class="walletChip" id="walletChipGlobe">💳 R —</span>
       <button class="tripsBtn" id="tripsBtnGlobe">🧳 My Trips</button>
       <button class="tripsBtn" id="conciergeBtn">✦ Ask Graba</button>
+      <button id="burgerBtn" aria-label="Menu">☰</button>
     </div>
 
     <div class="searchWrap">
@@ -1785,17 +1816,61 @@ document.getElementById('authPassword').addEventListener('keydown',e=>{
   if(e.key==='Enter') document.getElementById('authSubmitBtn').click();
 });
 document.getElementById('signOutBtn').onclick=async()=>{ await sb.auth.signOut(); };
+document.getElementById('closeAuth').onclick=()=>{ authOverlay.style.display='none'; };
+
+// Auth is on-demand, not a startup gate: browsing/search/hotel details work
+// for anyone, signed in or not. requireAuth() is the single gate used by
+// anything that actually needs an account (wallet, trips, the AI concierge,
+// and — the one that matters — booking itself). Call it right before the
+// action; if it returns false the auth card is shown and the caller should
+// stop, letting the user retry the same action once signed in.
+function requireAuth(message){
+  if(currentUser) return true;
+  setAuthError('');
+  document.getElementById('authSub').textContent = message || 'Making Travel Simple';
+  authOverlay.style.display='flex';
+  return false;
+}
 
 sb.auth.onAuthStateChange((_event, session)=>{
   currentUser=session?.user || null;
+  authOverlay.style.display='none'; // never force-shown automatically — see requireAuth()
   if(currentUser){
-    authOverlay.style.display='none';
     loadWalletAndTrips();
     handleStripeRedirect();
   } else {
-    authOverlay.style.display='flex';
+    walletBalance=0; walletTx=[]; myTrips=[];
+    updateWalletChips(); renderWalletView(); renderTripsList();
   }
+  renderBurgerMenu();
 });
+
+function renderBurgerMenu(){
+  const info=document.getElementById('burgerAccountInfo');
+  const btn=document.getElementById('burgerAuthBtn');
+  if(currentUser){
+    info.textContent = currentUser.email || 'Signed in';
+    btn.textContent = 'Sign out';
+  } else {
+    info.textContent = 'Not signed in';
+    btn.textContent = 'Sign in';
+  }
+}
+document.getElementById('burgerBtn').onclick=()=>{
+  renderBurgerMenu();
+  document.getElementById('burgerMenuOverlay').style.display='flex';
+};
+document.getElementById('closeBurger').onclick=()=>{
+  document.getElementById('burgerMenuOverlay').style.display='none';
+};
+document.getElementById('burgerMenuOverlay').addEventListener('click', e=>{
+  if(e.target.id==='burgerMenuOverlay') document.getElementById('burgerMenuOverlay').style.display='none';
+});
+document.getElementById('burgerAuthBtn').onclick=async()=>{
+  document.getElementById('burgerMenuOverlay').style.display='none';
+  if(currentUser){ await sb.auth.signOut(); }
+  else { requireAuth(); }
+};
 
 /* ============================================================
    TRAVEL WALLET, TRAVELLER & ITINERARY (BRS Process 6.0 / value
@@ -1838,6 +1913,7 @@ async function loadWalletAndTrips(){
 // page.
 async function topUpWallet(amount){
   if(!amount || amount<=0) return;
+  if(!requireAuth('Sign in to top up your Travel Wallet')) return;
   const {data:{session}} = await sb.auth.getSession();
   if(!session){ alert('Please sign in again.'); return; }
   const {data, error} = await sb.functions.invoke('create-paystack-transaction', {
@@ -1937,7 +2013,9 @@ function openConcierge(){
 function closeConcierge(){
   document.getElementById('conciergeOverlay').style.display='none';
 }
-document.getElementById('conciergeBtn').onclick=openConcierge;
+document.getElementById('conciergeBtn').onclick=()=>{
+  if(requireAuth('Sign in to chat with the AI concierge')) openConcierge();
+};
 document.getElementById('closeConcierge').onclick=closeConcierge;
 document.getElementById('conciergeOverlay').addEventListener('click', e=>{
   if(e.target.id==='conciergeOverlay') closeConcierge();
@@ -2026,6 +2104,10 @@ function updateTotal(){
 }
 
 document.getElementById('bookBtn').onclick=async()=>{
+  // Auth is deferred to this point, not a startup gate (see requireAuth()) —
+  // browsing hotels/flights and opening the package builder never required
+  // an account; booking is the one step that does.
+  if(!requireAuth('Sign in to complete your booking')) return;
   notePreference(activeHotel.type, 8); // booking is the strongest customer-preference signal (BRS 3.3)
   const {hotelTotal, flightTotal, transferTotal, total}=currentTotal();
   const flight=flights[selectedFlightIdx];
@@ -2148,8 +2230,9 @@ function hideTripsView(){
     document.querySelector('.hint').style.display='block';
   }
 }
-document.getElementById('tripsBtnGlobe').onclick=showTripsView;
-document.getElementById('tripsBtnMap').onclick=showTripsView;
+const gatedShowTripsView=()=>{ if(requireAuth('Sign in to see your trips')) showTripsView(); };
+document.getElementById('tripsBtnGlobe').onclick=gatedShowTripsView;
+document.getElementById('tripsBtnMap').onclick=gatedShowTripsView;
 document.getElementById('tripsBackBtn').onclick=hideTripsView;
 
 // ---- Travel Wallet view: balance + top-up + activity (BRS Process 6.0, Value Streams M/N) ----
@@ -2185,9 +2268,10 @@ function openWallet(){
 function closeWallet(){
   document.getElementById('walletOverlay').style.display='none';
 }
-document.getElementById('walletChipGlobe').onclick=openWallet;
-document.getElementById('walletChipMap').onclick=openWallet;
-document.getElementById('walletChipTrips').onclick=openWallet;
+const gatedOpenWallet=()=>{ if(requireAuth('Sign in to view your Travel Wallet')) openWallet(); };
+document.getElementById('walletChipGlobe').onclick=gatedOpenWallet;
+document.getElementById('walletChipMap').onclick=gatedOpenWallet;
+document.getElementById('walletChipTrips').onclick=gatedOpenWallet;
 document.getElementById('closeWallet').onclick=closeWallet;
 document.getElementById('walletOverlay').addEventListener('click',e=>{
   if(e.target.id==='walletOverlay') closeWallet();
