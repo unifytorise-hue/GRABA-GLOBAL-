@@ -32,6 +32,16 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
  *   PAYSTACK_SECRET_KEY — from the Paystack dashboard
  *   SITE_URL — optional, defaults to the GitHub Pages URL
  * SUPABASE_URL / SUPABASE_ANON_KEY are auto-injected by the platform.
+ *
+ * Real hotel reservation (LiteAPI prebook→book, see CLAUDE.md): the frontend
+ * may also send `prebookId` (from `liteapi-prebook`, only present for real
+ * LiteAPI hotels — mock/fallback hotels never have one) and `holder`
+ * (first/last name split from the traveller name field, best-effort — no new
+ * form fields were added for this). Both are stashed into
+ * `metadata.booking` unchanged so `paystack-webhook` can read them once
+ * payment is confirmed and attempt the actual LiteAPI booking call. The
+ * holder's email always comes from this function's own verified `user.email`
+ * (never trusted from the client) since Paystack already requires it.
  */
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -46,6 +56,8 @@ interface BookingPayload {
   traveller_name?: string;
   nights?: number;
   details?: Record<string, unknown>;
+  prebookId?: string | null;
+  holder?: { firstName?: string; lastName?: string; phone?: string };
 }
 
 Deno.serve(async (req: Request) => {
@@ -89,6 +101,13 @@ Deno.serve(async (req: Request) => {
   const traveller_name = String(body.traveller_name ?? "").trim();
   const nights = Number(body.nights);
   const details = (body.details && typeof body.details === "object") ? body.details : {};
+  const prebookId = (typeof body.prebookId === "string" && body.prebookId.trim()) ? body.prebookId.trim() : null;
+  // Best-effort holder name — no dedicated form fields exist for this yet
+  // (see CLAUDE.md), so fall back to splitting traveller_name on first space.
+  const fallbackParts = traveller_name.split(/\s+/).filter(Boolean);
+  const holderFirstName = String(body.holder?.firstName ?? "").trim() || fallbackParts[0] || "Guest";
+  const holderLastName = String(body.holder?.lastName ?? "").trim() || fallbackParts.slice(1).join(" ") || "Traveller";
+  const holderPhone = String(body.holder?.phone ?? "").trim() || null;
 
   if (!Number.isFinite(total_amount) || total_amount <= 0) {
     return new Response(JSON.stringify({ error: "total_amount must be a positive number" }), { status: 400, headers: { "Content-Type": "application/json" } });
@@ -122,6 +141,8 @@ Deno.serve(async (req: Request) => {
             nights,
             total_amount,
             details,
+            prebookId,
+            holder: { firstName: holderFirstName, lastName: holderLastName, email: user.email, phone: holderPhone },
           },
         },
       }),

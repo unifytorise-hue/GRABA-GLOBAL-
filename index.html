@@ -1158,7 +1158,11 @@ function adaptHotelSearchResult(h, dest, i){
     profitPct: rand(3,22)/100,
     photo: null,
     address: '',
-    live: true
+    live: true,
+    // Real-reservation identifier (LiteAPI prebook→book flow, see CLAUDE.md)
+    // — null when booking-hotel-search couldn't find one (see its file
+    // header CONFIDENCE note); mock hotels never have this field at all.
+    offerId: (typeof h.offerId==='string' && h.offerId) ? h.offerId : null
   };
 }
 async function fetchRealHotels(destKey, centerLat, centerLon){
@@ -2995,6 +2999,41 @@ document.getElementById('bookBtn').onclick=async()=>{
   bookBtn.disabled=true;
   const {data:{session}} = await sb.auth.getSession();
   if(!session){ alert('Please sign in again.'); bookBtn.disabled=false; return; }
+
+  // Real hotel reservation, step 1 of 2 (LiteAPI prebook -> book — see
+  // CLAUDE.md). Hold the priced rate before charging the card, so a
+  // sold-out/expired rate is caught before payment where possible. Only
+  // real LiteAPI hotels have an offerId (see adaptHotelSearchResult()) —
+  // mock/fallback hotels (genHotels()) never did and were never going to be
+  // real reservations anyway, so this is skipped entirely for them and
+  // booking proceeds exactly as before. Any failure here is non-blocking:
+  // it's logged and booking still proceeds — paystack-webhook records the
+  // missing/failed reservation on the booking (details.supplierBookingFailed)
+  // for manual follow-up rather than the user losing their card charge over
+  // an inventory-hold quirk.
+  let prebookId=null;
+  if(activeHotel && activeHotel.offerId){
+    try{
+      const {data:pb, error:pbErr}=await sb.functions.invoke('liteapi-prebook', {
+        body: {offerId: activeHotel.offerId},
+        headers: {Authorization: `Bearer ${session.access_token}`}
+      });
+      if(pbErr) throw pbErr;
+      prebookId = (pb && pb.prebookId) ? pb.prebookId : null;
+      if(!prebookId) console.warn('liteapi-prebook did not return a prebookId — proceeding without a supplier hold; paystack-webhook will flag this booking as supplierBookingFailed.', pb);
+    }catch(e){
+      console.warn('liteapi-prebook failed — proceeding without a supplier hold (payment still goes ahead):', e);
+    }
+  } else if(activeHotel && activeHotel.live){
+    console.warn('Live LiteAPI hotel with no offerId — cannot prebook a real reservation for this hotel.', activeHotel.id);
+  }
+
+  // Best-effort holder first/last name — no dedicated form fields exist for
+  // this (out of scope, see CLAUDE.md); split the single traveller-name
+  // field on the first space instead.
+  const nameParts = travellerLabel.trim().split(/\s+/).filter(Boolean);
+  const holder = { firstName: nameParts[0] || 'Guest', lastName: nameParts.slice(1).join(' ') || 'Traveller' };
+
   const {data, error} = await sb.functions.invoke('create-booking-payment', {
     body: {
       total_amount: total,
@@ -3002,6 +3041,8 @@ document.getElementById('bookBtn').onclick=async()=>{
       destination_country: DESTINATIONS[currentDestKey].country,
       traveller_name: travellerLabel,
       nights,
+      prebookId,
+      holder,
       details: {hotelName:activeHotel.name, flight, hotelTotal, flightTotal, transferTotal, paymentLabel:'Credit / Debit Card', insurance:false}
     },
     headers: {Authorization: `Bearer ${session.access_token}`}
