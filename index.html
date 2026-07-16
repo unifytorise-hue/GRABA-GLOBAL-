@@ -1916,11 +1916,16 @@ function renderGlobeRaster(effRadius){
         if(diffuse>0.82){ const glint=(diffuse-0.82)/0.18; r+=90*glint; g+=90*glint; b+=70*glint; }
       }
 
-      // thin cloud wisps over everything (smoothed noise so they drift, not flicker)
-      const cloud=valueNoise(lon*0.1+cloudDrift, lat*0.12);
-      if(cloud>0.7){
-        const ca=Math.min(1,(cloud-0.7)/0.3)*0.55*Math.max(0.4,light);
-        r=r*(1-ca)+255*ca; g=g*(1-ca)+255*ca; b=b*(1-ca)+255*ca;
+      // Thin cloud wisps — only for the procedural fallback. Against the real
+      // photo this low-frequency noise reads as big solid gray-white
+      // blotches (not wispy), since the eye is much less forgiving of an
+      // obviously-fake shape once everything else on screen is a real photo.
+      if(!earthTexReady){
+        const cloud=valueNoise(lon*0.1+cloudDrift, lat*0.12);
+        if(cloud>0.7){
+          const ca=Math.min(1,(cloud-0.7)/0.3)*0.55*Math.max(0.4,light);
+          r=r*(1-ca)+255*ca; g=g*(1-ca)+255*ca; b=b*(1-ca)+255*ca;
+        }
       }
 
       data[idx]=r; data[idx+1]=g; data[idx+2]=b; data[idx+3]=255;
