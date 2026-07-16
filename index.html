@@ -564,8 +564,16 @@
     background:linear-gradient(135deg,var(--glow),var(--purple));color:#fff;font-weight:700;font-size:13px;cursor:pointer;}
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="./lib/leaflet.markercluster/dist/MarkerCluster.min.css">
-<link rel="stylesheet" href="./lib/leaflet.markercluster/dist/MarkerCluster.Default.min.css">
+<!-- Was pointed at ./lib/leaflet.markercluster/dist/... — that directory was
+     never actually committed to this repo (confirmed via git log), so these
+     404'd in production too, not just here. L.markerClusterGroup was always
+     undefined; the map view degraded to a plain layerGroup (see the
+     typeof L.markerClusterGroup==='function' check near markerClusterGroup=
+     below) rather than crashing, which is why this went unnoticed. Pointing
+     at cdnjs (already trusted for Leaflet core above) instead of a phantom
+     local path. -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.min.css">
 <style>
   /* ---- GRABA-themed cluster badges: pill-shaped with price range (Booking.com-style) ---- */
   .marker-cluster{background:none !important;border:none !important;box-shadow:none !important;}
@@ -1014,7 +1022,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="./lib/leaflet.markercluster/dist/leaflet.markercluster.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 /* ============================================================
@@ -2051,14 +2059,12 @@ function renderGlobeRaster(effRadius){
         const raw=sampleEarthTex(lon,lat);
         r=raw[0]*texLight; g=raw[1]*texLight; b=raw[2]*texLight;
         // Sun glint on water — was a large flat gray-white smear (visible
-        // reported bug), not a sparkle: diffuse>0.82 covers a wide cap of
-        // the visible ocean, and +90/+90/+70 is a big flat boost against
-        // real (dark, desaturated) photo pixels, unlike the old bright
-        // procedural ocean color this was originally tuned against. Tighter
-        // threshold + squared falloff = a small bright core that fades
-        // fast, closer to an actual specular highlight.
-        if(!land && diffuse>0.965){
-          const glint=Math.pow((diffuse-0.965)/0.035, 2);
+        // reported bug), not a sparkle: diffuse>0.965 still covers ~4.7% of
+        // visible sphere pixels (confirmed via Python repro of this exact
+        // math), reading as a big blob rather than a sparkle. 0.996 covers
+        // a genuinely tight cap; squared falloff keeps the bright core small.
+        if(!land && diffuse>0.996){
+          const glint=Math.pow((diffuse-0.996)/0.004, 2);
           r+=65*glint; g+=65*glint; b+=50*glint;
         }
       } else if(land){
@@ -2257,7 +2263,16 @@ function animate(){
   drawGlobe();
   if(typeof updateGlobePhotoMarkers==='function') updateGlobePhotoMarkers();
 }
-animate();
+// Deferred via rAF rather than an eager synchronous call: animate() reaches
+// into updateGlobePhotoMarkers(), which touches `globeMarkers` — a const
+// declared much further down this same <script> block. Calling animate()
+// synchronously here ran it before that declaration had executed, throwing
+// an uncaught "Cannot access 'globeMarkers' before initialization" on every
+// frame forever, which aborted the rest of this script's top-level
+// execution (destStrip, Gabriel panel injection, map view/wallet/trips
+// init — everything after this point never ran). rAF fires after the whole
+// script finishes evaluating, so every later const/IIFE is ready by then.
+requestAnimationFrame(animate);
 
 /* ============================================================
    SEARCH + SUGGESTIONS
