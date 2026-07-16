@@ -73,6 +73,17 @@ Real money moves through **Paystack**, wired into the booking flow (`bookBtn.onc
 - **`create-paystack-transaction`** (the old wallet top-up initializer) **is still deployed but no longer called from `index.html`** — left in place rather than deleted, same as the Stripe functions below, in case it's useful if the wallet is ever resurrected.
 - **Stripe's `create-checkout-session`/`stripe-webhook` functions and `stripe_events` table are still deployed but unused** — left in place rather than deleted in case Stripe is revisited later.
 
+### Booking modal — presentation-layer reskin (no backend/payment/reservation logic changed)
+
+The package-builder modal (`#modal`, opened via `openPackageModal()`) was reorganized for clarity — applying generic, industry-standard booking-flow UX (itemized always-visible pricing, a jump-nav rather than a gated wizard, a trust cue before charging a real card), not a copy of any specific competitor's design:
+
+- The step-dots (`#modalSteps`) are a **jump-nav over one continuous scrollable view, not a gated wizard** — every section (`MODAL_STEP_IDS`: `stepNights`, `stepFlight`, `stepTransfers`, `stepGuest`, `stepReview`) stays visible and editable regardless of which dot is "active"; tapping a dot just scrolls to it (`updateModalSteps()`'s click handler, unchanged from before).
+- `#priceBreakdown` shows live per-line pricing (stay / flight / transfers) above the total, populated by `updateTotal()` from the same `currentTotal()` this always used — no new pricing logic, just more of the existing numbers rendered.
+- New `#stepReview` section (`#rvDest`/`#rvStay`/`#rvFlight`/`#rvTransfers`/`#rvGuest`) — a one-glance summary of exactly what's being booked, also populated by `updateTotal()`.
+- `#stepPayment` (the old non-interactive "Credit / Debit Card" line) became `#paymentTrust`, moved to sit directly above `#bookBtn` with explicit copy ("you'll be redirected to Paystack... your card is charged immediately, this isn't a hold") — a trust/reassurance cue right before the one action that actually spends real money.
+- Added `#originInput` (free-text departure city/airport, defaults to `Johannesburg (JNB)`, stored in `originCity`) — this is **UI-only**, included in the booking's `details.originCity` sent to `create-booking-payment` so it's at least recorded, but **not yet wired to real flight search** (flights are still `genFlights()` mock either way — see below). A real airport-autocomplete/IATA lookup was deliberately not built here, out of scope for a presentation change.
+- Nothing about `bookBtn.onclick`'s actual call chain changed: `requireAuth` → LiteAPI prebook (if the hotel has a real `offerId`) → `create-booking-payment` → redirect to Paystack. This was a restructure of the surrounding UI only.
+
 ### Flight/hotel edge functions
 
 Two edge functions are deployed on the Graba Global project as seams for real inventory. **Hotels are wired into the frontend; flights are not yet.** The hotel wiring degrades safely: `fetchRealHotels()` falls back to `genHotels()` mock data on any error, so a broken call just silently reverts to generated inventory rather than breaking the map view (this is the "never zero availability" principle — see below).

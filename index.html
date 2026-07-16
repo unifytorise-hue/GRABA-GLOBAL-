@@ -339,9 +339,19 @@
   .stepper .n{font-weight:800;min-width:16px;text-align:center;}
   .shuffleBtn{width:100%;padding:10px;border:1.5px dashed #ddd;border-radius:12px;background:#fff;
     color:#888;font-size:12.5px;font-weight:700;cursor:pointer;margin-top:2px;}
-  #totalBar{position:sticky;bottom:0;background:#fff;border-top:1px solid #eee;padding:14px 20px 22px;
-    display:flex;align-items:center;gap:14px;}
-  #totalBar .tot{flex:1;}
+  .modalStepsHint{padding:6px 20px 0;font-size:10px;color:#aaa;text-align:center;}
+  .modalTextInput{width:100%;background:#faf6ff;border:1.5px solid #eee;border-radius:12px;padding:10px 12px;
+    font-size:13.5px;font-family:inherit;color:var(--ink);box-sizing:border-box;}
+  /* ---- Sticky review/pay bar: itemized cost breakdown (always visible, updates live),
+     running total, payment-method trust cue, then the single primary action. ---- */
+  #totalBar{position:sticky;bottom:0;background:#fff;border-top:1px solid #eee;padding:12px 20px 20px;
+    display:flex;flex-direction:column;gap:2px;}
+  #priceBreakdown{padding-bottom:6px;border-bottom:1px dashed #eee;margin-bottom:8px;}
+  .pbRow{display:flex;align-items:baseline;justify-content:space-between;font-size:11.5px;padding:2px 0;}
+  .pbRow .pbL{color:#999;font-weight:600;}
+  .pbRow .pbL span{color:#bbb;font-weight:500;}
+  .pbRow .pbR{color:#666;font-weight:700;}
+  #totalBar .tot{display:flex;align-items:baseline;justify-content:space-between;padding:2px 0 10px;}
   #totalBar .tot .lab{font-size:10.5px;color:#999;font-weight:600;}
   #totalBar .tot .amt{font-size:20px;font-weight:900;display:inline-block;}
   @keyframes pulseTotal{
@@ -350,8 +360,15 @@
     100%{transform:scale(1);color:var(--ink);}
   }
   .pulseTotal{animation:pulseTotal .4s ease-out;}
-  #bookBtn{background:linear-gradient(135deg,var(--glow),var(--purple));color:#fff;border:none;
-    padding:14px 26px;border-radius:14px;font-weight:800;font-size:14.5px;cursor:pointer;}
+  #paymentTrust{background:#faf6ff;border:1px solid #f0e4ff;border-radius:12px;padding:10px 12px;margin-bottom:12px;}
+  #paymentTrust .ptMethod{display:flex;align-items:center;gap:9px;}
+  #paymentTrust .ptDot{color:var(--purple);font-size:13px;}
+  #paymentTrust .ptTitle{font-size:12.5px;font-weight:700;}
+  #paymentTrust .ptSub{font-size:10.5px;color:#888;margin-top:1px;}
+  #paymentTrust .ptNote{font-size:10.5px;color:#8a7aa0;line-height:1.45;margin-top:8px;padding-top:8px;border-top:1px dashed #e5d3fb;}
+  #paymentTrust .ptNote span{font-weight:800;color:var(--purple);}
+  #bookBtn{width:100%;background:linear-gradient(135deg,var(--glow),var(--purple));color:#fff;border:none;
+    padding:15px 26px;border-radius:14px;font-weight:800;font-size:14.5px;cursor:pointer;}
   #bookBtn:active{transform:scale(.97);}
   #closeModal{position:absolute;top:14px;right:16px;width:30px;height:30px;border-radius:50%;
     background:#f2f2f2;border:none;font-size:14px;cursor:pointer;z-index:2;}
@@ -787,19 +804,22 @@
       </div>
 
       <div id="modalSteps">
-        <div class="stepDot active" data-target="stepNights"><span class="stepNum">1</span><span class="stepLabel">Nights</span></div>
+        <div class="stepDot active" data-target="stepNights"><span class="stepNum">1</span><span class="stepLabel">Stay</span></div>
         <div class="stepLine"></div>
         <div class="stepDot" data-target="stepFlight"><span class="stepNum">2</span><span class="stepLabel">Flight</span></div>
         <div class="stepLine"></div>
         <div class="stepDot" data-target="stepTransfers"><span class="stepNum">3</span><span class="stepLabel">Transfers</span></div>
         <div class="stepLine"></div>
-        <div class="stepDot" data-target="stepPayment"><span class="stepNum">4</span><span class="stepLabel">Payment</span></div>
+        <div class="stepDot" data-target="stepGuest"><span class="stepNum">4</span><span class="stepLabel">Guest</span></div>
+        <div class="stepLine"></div>
+        <div class="stepDot" data-target="stepReview"><span class="stepNum">5</span><span class="stepLabel">Review</span></div>
       </div>
+      <div class="modalStepsHint">Tap any step to jump straight there — everything below stays editable, in any order.</div>
 
       <div class="sec" id="stepNights">
-        <div class="lab">Nights</div>
+        <div class="lab">Stay · length of trip</div>
         <div class="row">
-          <div class="l">Length of stay</div>
+          <div class="l">Nights at this hotel</div>
           <div class="stepper">
             <button id="nightsMinus">–</button>
             <div class="n" id="nightsVal">3</div>
@@ -809,7 +829,12 @@
       </div>
 
       <div class="sec" id="stepFlight">
-        <div class="lab">Flight · from your city</div>
+        <div class="lab">Flight</div>
+        <div class="row" style="padding-top:0;padding-bottom:6px;">
+          <div class="l">Departing from</div>
+        </div>
+        <input id="originInput" class="modalTextInput" type="text" value="Johannesburg (JNB)" autocomplete="off" placeholder="Johannesburg (JNB)">
+        <div class="sub" style="margin:6px 0 12px;">We'll match this against available flights — full airport search is coming soon.</div>
         <div id="flightOptions"></div>
         <button class="shuffleBtn" id="shuffleFlights">↻ Show more flight options</button>
       </div>
@@ -821,28 +846,37 @@
         <div class="row"><div class="l">Hotel → Departure airport (return)</div><div class="r" id="t3p">—</div></div>
       </div>
 
-      <div class="sec">
+      <div class="sec" id="stepGuest">
         <div class="lab">Booking for</div>
-        <div class="row">
+        <div class="row" style="padding-top:0;padding-bottom:6px;">
           <div class="l">Lead guest</div>
         </div>
-        <input id="travellerInput" type="text" placeholder="You" autocomplete="off"
-          style="width:100%;background:#faf6ff;border:1.5px solid #eee;border-radius:12px;padding:10px 12px;font-size:13.5px;font-family:inherit;color:var(--ink);">
+        <input id="travellerInput" class="modalTextInput" type="text" placeholder="You" autocomplete="off">
         <div class="sub" style="margin-top:6px;">Booking on your account — leave blank if you're the traveller, or add someone else's name.</div>
       </div>
 
-      <div class="sec" id="stepPayment">
-        <div class="lab">Payment method</div>
-        <div class="legOption sel" style="cursor:default;">
-          <div><div class="t1">Credit / Debit Card</div><div class="t2">Secure checkout via Paystack</div></div>
-          <div class="p">●</div>
-        </div>
+      <div class="sec" id="stepReview">
+        <div class="lab">Review your trip</div>
+        <div class="row"><div class="l">Destination</div><div class="r" id="rvDest">—</div></div>
+        <div class="row"><div class="l">Stay</div><div class="r" id="rvStay">—</div></div>
+        <div class="row"><div class="l">Flight</div><div class="r" id="rvFlight">—</div></div>
+        <div class="row"><div class="l">Transfers</div><div class="r" id="rvTransfers">—</div></div>
+        <div class="row"><div class="l">Guest</div><div class="r" id="rvGuest">—</div></div>
       </div>
 
       <div id="totalBar">
+        <div id="priceBreakdown">
+          <div class="pbRow"><span class="pbL">Stay <span id="pbNightsLabel">· 3 nights</span></span><span class="pbR" id="pbHotel">R 0</span></div>
+          <div class="pbRow"><span class="pbL">Flight</span><span class="pbR" id="pbFlight">R 0</span></div>
+          <div class="pbRow"><span class="pbL">Transfers</span><span class="pbR" id="pbTransfer">R 0</span></div>
+        </div>
         <div class="tot">
           <div class="lab">TOTAL · FLIGHT + STAY + TRANSFERS</div>
           <div class="amt" id="totalAmt">R 0</div>
+        </div>
+        <div id="paymentTrust">
+          <div class="ptMethod"><span class="ptDot">●</span><div><div class="ptTitle">Credit / Debit Card</div><div class="ptSub">Secure checkout via Paystack</div></div></div>
+          <div class="ptNote">🔒 You'll be redirected to Paystack to complete a secure payment of <span id="ptAmt">R 0</span> now — your card is charged immediately, this isn't a hold.</div>
         </div>
         <button id="bookBtn">Book with Graba</button>
       </div>
@@ -2762,6 +2796,7 @@ let transferPrices={t1:0,t2:0,t3:0};
    still lives in localStorage, since it isn't account data.
 ============================================================ */
 let travellerName='';                     // blank = "You" (lead guest)
+let originCity='Johannesburg (JNB)';      // free-text departure city — UI only, not yet wired to real flight search (see CLAUDE.md)
 const myTrips=[];                         // confirmed bookings — backs the Itinerary/Planner view
 let profile={name:'', email:'', phone:''}; // view/update profile details
 
@@ -2846,6 +2881,7 @@ function openPackageModal(hotel){
   document.getElementById('rankToggle').textContent='ⓘ Why this ranks here';
 
   document.getElementById('travellerInput').value=travellerName;
+  document.getElementById('originInput').value=originCity;
 
   transferPrices={t1:rand(120,340),t2:rand(150,420),t3:rand(150,420)};
   document.getElementById('t1p').textContent='R'+transferPrices.t1;
@@ -2872,8 +2908,10 @@ function openPackageModal(hotel){
   updateModalSteps();
 }
 
-/* Progress-step indicator: highlights which section is in view as user scrolls the modal */
-const MODAL_STEP_IDS=['stepNights','stepFlight','stepTransfers','stepPayment'];
+/* Progress-step indicator: highlights which section is in view as user scrolls the modal.
+   This is a jump-nav over one continuous scrollable review, not a gated wizard — every
+   section stays visible and editable regardless of which dot is "active". */
+const MODAL_STEP_IDS=['stepNights','stepFlight','stepTransfers','stepGuest','stepReview'];
 function updateModalSteps(){
   const modalEl=document.getElementById('modal');
   const dots=document.querySelectorAll('#modalSteps .stepDot');
@@ -2906,7 +2944,8 @@ document.querySelectorAll('#modalSteps .stepDot').forEach(dot=>{
 document.getElementById('closeModal').onclick=()=>modalOverlay.style.display='none';
 document.getElementById('nightsMinus').onclick=()=>{ if(nights>1){nights--; sync();} };
 document.getElementById('nightsPlus').onclick=()=>{ nights++; sync(); };
-document.getElementById('travellerInput').addEventListener('input',e=>{ travellerName=e.target.value.trim(); });
+document.getElementById('travellerInput').addEventListener('input',e=>{ travellerName=e.target.value.trim(); updateTotal(); });
+document.getElementById('originInput').addEventListener('input',e=>{ originCity=e.target.value.trim(); });
 function sync(){ document.getElementById('nightsVal').textContent=nights; updateTotal(); }
 
 function renderFlights(){
@@ -2937,7 +2976,7 @@ function currentTotal(){
 }
 let lastTotalShown=null;
 function updateTotal(){
-  const {total}=currentTotal();
+  const {hotelTotal, flightTotal, transferTotal, total}=currentTotal();
   const totalEl=document.getElementById('totalAmt');
   totalEl.textContent=fmtR(total);
   if(lastTotalShown!==null && lastTotalShown!==total){
@@ -2946,6 +2985,24 @@ function updateTotal(){
     totalEl.classList.add('pulseTotal');
   }
   lastTotalShown=total;
+
+  // Itemized breakdown + payment trust note — always visible, updates live
+  // as nights/flight/transfers/guest change, so the total is never a
+  // surprise by the time the user reaches "Book with Graba".
+  document.getElementById('pbNightsLabel').textContent=`· ${nights} night${nights===1?'':'s'}`;
+  document.getElementById('pbHotel').textContent=fmtR(hotelTotal);
+  document.getElementById('pbFlight').textContent=fmtR(flightTotal);
+  document.getElementById('pbTransfer').textContent=fmtR(transferTotal);
+  document.getElementById('ptAmt').textContent=fmtR(total);
+
+  // Review section — one-glance summary of exactly what's being booked.
+  const flight=flights[selectedFlightIdx];
+  const dest=DESTINATIONS[currentDestKey];
+  document.getElementById('rvDest').textContent = dest ? `${dest.city}, ${dest.country}` : '—';
+  document.getElementById('rvStay').textContent = activeHotel ? `${activeHotel.name} · ${nights} night${nights===1?'':'s'}` : '—';
+  document.getElementById('rvFlight').textContent = flight ? `${flight.airline} · ${flight.time}` : '—';
+  document.getElementById('rvTransfers').textContent = 'Airport ↔ hotel, both ways';
+  document.getElementById('rvGuest').textContent = travellerName ? travellerName : 'You (lead guest)';
 }
 
 // Populates and shows the "Trip booked" confirmation screen from a real
@@ -3043,7 +3100,7 @@ document.getElementById('bookBtn').onclick=async()=>{
       nights,
       prebookId,
       holder,
-      details: {hotelName:activeHotel.name, flight, hotelTotal, flightTotal, transferTotal, paymentLabel:'Credit / Debit Card', insurance:false}
+      details: {hotelName:activeHotel.name, flight, hotelTotal, flightTotal, transferTotal, paymentLabel:'Credit / Debit Card', insurance:false, originCity}
     },
     headers: {Authorization: `Bearer ${session.access_token}`}
   });
