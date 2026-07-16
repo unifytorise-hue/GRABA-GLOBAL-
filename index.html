@@ -481,6 +481,36 @@
     50%{transform:translateY(-16px);opacity:1;}
   }
 
+  /* Tap a pack-belt card -> full-screen photo gallery -> "Next" hands off to
+     Gabriella with the package as context. Photos here are placeholder
+     (SCENE_PHOTOS, same pool photoTag() already uses) until a real per-hotel
+     gallery source (LiteAPI) is wired in — see openPackGallery(). */
+  #packGalleryOverlay{position:absolute;inset:0;background:var(--ink);display:none;z-index:40;
+    flex-direction:column;animation:fadeIn .22s ease;}
+  #packGalleryOverlay.on{display:flex;}
+  @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+  #pgClose{position:absolute;top:calc(14px + var(--safe-area-top,0px));right:14px;z-index:2;
+    width:34px;height:34px;border-radius:50%;background:rgba(15,7,30,.7);border:1px solid var(--line);
+    color:#fff;font-size:14px;cursor:pointer;backdrop-filter:blur(8px);}
+  #pgHero{position:relative;flex:1;min-height:0;background:#050508;}
+  #pgHero img{width:100%;height:100%;object-fit:cover;display:block;}
+  #pgHero::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(5,3,10,0) 55%,rgba(5,3,10,.85) 100%);pointer-events:none;}
+  #pgThumbs{display:flex;gap:6px;overflow-x:auto;padding:10px 14px;scrollbar-width:none;flex-shrink:0;}
+  #pgThumbs::-webkit-scrollbar{display:none;}
+  #pgThumbs .g{flex:0 0 58px;height:44px;border-radius:8px;overflow:hidden;cursor:pointer;
+    border:1.5px solid transparent;opacity:.55;transition:opacity .15s ease,border-color .15s ease;}
+  #pgThumbs .g.sel{opacity:1;border-color:var(--glow);}
+  #pgThumbs .g img{width:100%;height:100%;object-fit:cover;display:block;}
+  #pgInfo{padding:2px 18px 4px;flex-shrink:0;}
+  #pgTag{display:inline-block;font-size:9px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;
+    color:#fff;background:linear-gradient(135deg,#c026d3,#7c3aed);padding:3px 9px;border-radius:999px;margin-bottom:6px;}
+  #pgCity{font-family:'Playfair Display',Georgia,serif;font-style:italic;font-size:22px;color:#fff;}
+  #pgMeta{font-size:12px;color:var(--text-dim);margin-top:2px;}
+  #pgNext{margin:14px 18px calc(16px + var(--safe-area-bottom,0px));padding:14px;border:none;border-radius:14px;
+    background:linear-gradient(135deg,var(--glow),var(--purple));color:#fff;font-weight:800;font-size:14px;
+    cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;gap:8px;}
+  #pgNext:active{transform:scale(.98);}
 
   #countryChip{display:none;position:absolute;left:50%;bottom:70px;transform:translateX(-50%);
     background:rgba(20,10,30,0.92);border:1px solid var(--line);border-radius:16px;padding:14px 16px;
@@ -679,6 +709,18 @@
          <div class="psHand">☝️</div>
          <div class="psTxt">Swipe up to dismiss</div>
        </div>
+     </div>
+
+     <div id="packGalleryOverlay" role="dialog" aria-modal="true" aria-label="Package photos">
+       <button id="pgClose" aria-label="Close">✕</button>
+       <div id="pgHero"><img id="pgHeroImg" alt=""></div>
+       <div id="pgThumbs"></div>
+       <div id="pgInfo">
+         <div id="pgTag"></div>
+         <div id="pgCity"></div>
+         <div id="pgMeta"></div>
+       </div>
+       <button id="pgNext">Next — Ask Gabriella <span aria-hidden="true">→</span></button>
      </div>
 
     <div class="searchWrap">
@@ -3756,7 +3798,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
 
   // Keep Gabriel visible across every screen, but step aside when a
   // full-screen overlay/modal takes over so it never covers actions.
-  const OVERLAY_SELECTORS=['#modalOverlay','#confirmOverlay','#onboardOverlay','#profileOverlay','#tripsView'];
+  const OVERLAY_SELECTORS=['#modalOverlay','#confirmOverlay','#onboardOverlay','#profileOverlay','#tripsView','#packGalleryOverlay'];
   function refreshFabVisibility(){
     if(panel.classList.contains('on')){ return; }
     const suppressed=OVERLAY_SELECTORS.some(sel=>{
@@ -3801,6 +3843,15 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
     inputEl.style.height=Math.min(120,inputEl.scrollHeight)+'px';
   });
   document.addEventListener('keydown',(e)=>{ if(e.key==='Escape' && panel.classList.contains('on')) closePanel(); });
+
+  // Small public entry point so other, unrelated parts of the app (e.g. the
+  // pack-belt gallery's "Next" button) can hand a prompt straight to
+  // Gabriella without reaching into this IIFE's internals.
+  window.openGabriellaWithPrompt=function(promptText, title){
+    if(!requireAuth('Sign in to chat with Gabriella')) return;
+    openPanel();
+    startNewThreadWith(promptText, title);
+  };
 })();
 
 /* ================= INFINITY BELT — real API packages ================= */
@@ -3818,6 +3869,62 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
     return 'R'+n;
   };
   const travelersLabel=(n)=>n===1?'1 traveller':n+' travellers';
+
+  // ---------- Photo gallery -> Gabriella hand-off ----------
+  // Tapping a card opens this instead of the old pause/resume toggle (see
+  // buildCard()'s click handler below). Photos are placeholder — pulled from
+  // the same SCENE_PHOTOS pool photoTag() already uses elsewhere, keyed off
+  // a scene derived from the package id, same pattern as adaptHotelSearchResult().
+  // Swap galleryPhotosFor() for a real per-hotel photo set (e.g. LiteAPI) once
+  // that's wired in; nothing else here needs to change.
+  const packGalleryOverlay=document.getElementById('packGalleryOverlay');
+  let activePack=null;
+  function galleryPhotosFor(p){
+    const scene=SCENES[seedNum(p.id||p.city||'')%SCENES.length];
+    const pool=SCENE_PHOTOS[scene]||SCENE_PHOTOS.beach;
+    const start=seedNum((p.id||p.city||'')+'x')%pool.length;
+    const ids=[];
+    for(let i=0;i<Math.min(6,pool.length);i++) ids.push(pool[(start+i)%pool.length]);
+    return ids.map(id=>`https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=900&h=1200&q=75`);
+  }
+  function showGalleryPhoto(url){
+    document.getElementById('pgHeroImg').src=url;
+    packGalleryOverlay.querySelectorAll('#pgThumbs .g').forEach(el=>{
+      el.classList.toggle('sel', el.dataset.url===url);
+    });
+  }
+  function openPackGallery(p){
+    activePack=p;
+    paused=true; // ring stays still while the gallery's open
+    const photos=galleryPhotosFor(p);
+    document.getElementById('pgTag').textContent=p.tag||'Featured';
+    document.getElementById('pgCity').textContent=p.city+(p.country?`, ${p.country}`:'');
+    document.getElementById('pgMeta').textContent=
+      `${p.days} days · ${travelersLabel(p.travelers)} · total ${fmtPrice(p.totalZar)}`;
+    const thumbs=document.getElementById('pgThumbs');
+    thumbs.innerHTML='';
+    photos.forEach(url=>{
+      const d=document.createElement('div');
+      d.className='g';
+      d.dataset.url=url;
+      d.innerHTML=`<img src="${url}" loading="lazy" alt="">`;
+      d.onclick=()=>showGalleryPhoto(url);
+      thumbs.appendChild(d);
+    });
+    showGalleryPhoto(photos[0]);
+    packGalleryOverlay.classList.add('on');
+  }
+  function closePackGallery(){
+    packGalleryOverlay.classList.remove('on');
+  }
+  document.getElementById('pgClose').onclick=closePackGallery;
+  document.getElementById('pgNext').onclick=()=>{
+    const p=activePack;
+    closePackGallery();
+    if(!p || typeof window.openGabriellaWithPrompt!=='function') return;
+    const prompt=`Tell me more about ${p.city}${p.country?`, ${p.country}`:''} — help me plan this ${p.days}-day trip for ${travelersLabel(p.travelers)}, around ${fmtPrice(p.totalZar)} total.`;
+    window.openGabriellaWithPrompt(prompt, p.city);
+  };
 
   let POOL=[];        // packages from API
   let queue=[];       // shuffled queue — refills from remaining POOL
@@ -3893,13 +4000,9 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
       }
       tapTimer=setTimeout(()=>{
         tapTimer=null;
-        // Single tap toggles the ring: stop if running, resume if paused.
-        paused=!paused;
-        if(paused){ el.classList.add('opaque'); }
-        else {
-          document.querySelectorAll('.packCard.opaque').forEach(c=>c.classList.remove('opaque'));
-          if(typeof showSwipeHint==='function') showSwipeHint();
-        }
+        // Single tap opens the photo gallery for this package (openPackGallery
+        // pauses the ring itself while it's open).
+        openPackGallery(p);
       }, 240);
     });
     return el;
