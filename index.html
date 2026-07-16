@@ -4021,17 +4021,61 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
     }
   }
 
+  // Marketing category label per curated destination — not real data, just a
+  // display tag (same spirit as the "tag" pill Lovable's reference shows).
+  const PACKAGE_TAGS={
+    zanzibar:'ISLAND', dubai:'CITY', maldives:'ISLAND', 'cape town':'CITY',
+    johannesburg:'CITY', durban:'BEACH', london:'CITY', paris:'ROMANCE',
+    'new york':'CITY', mauritius:'ISLAND'
+  };
+  const PACKAGE_DAYS=3, PACKAGE_TRAVELERS=2;
+
+  // Real hotel pricing for one destination, via the same booking-hotel-search
+  // edge function (LiteAPI) the map view uses — count:5 keeps this light
+  // since the belt only needs one representative priced hotel per city, not
+  // a full search result set.
+  async function fetchPackageForDest(key){
+    const dest=DESTINATIONS[key]; if(!dest) return null;
+    try{
+      const {data, error}=await sb.functions.invoke('booking-hotel-search', {
+        body: { query: `${dest.city}, ${dest.country}`, nights: PACKAGE_DAYS, count: 5, lat: dest.lat, lon: dest.lon }
+      });
+      if(error) throw error;
+      const hotels=(data && Array.isArray(data.hotels)) ? data.hotels : [];
+      const hotel=hotels.find(h=>typeof h.pricePerNight==='number' && h.pricePerNight>0);
+      if(!hotel) return null;
+      return {
+        id:'pkg-'+key,
+        city:(dest.city.split(',')[0]||dest.city),
+        country:dest.country,
+        tag:PACKAGE_TAGS[key]||'STAY',
+        days:PACKAGE_DAYS,
+        travelers:PACKAGE_TRAVELERS,
+        totalZar:Math.round(hotel.pricePerNight*PACKAGE_DAYS),
+        photo:hotel.photo || null
+      };
+    }catch(err){
+      console.warn('[packBelt] real hotel lookup failed for', key, err);
+      return null;
+    }
+  }
+
+  // Real data, built from the same curated DESTINATIONS list + real LiteAPI
+  // pricing used elsewhere — replaces the old /api/public/packages call,
+  // which was a leftover Next.js-only route from the Lovable prototype merge
+  // that 404'd on this static site (the belt has likely never shown real
+  // cards on the live site until this fix).
   async function load(){
     renderSkeletons();
     try{
-      const r=await fetch('/api/public/packages');
-      const d=await r.json();
-      POOL=(d.packages||[]).filter(p=>p && p.totalZar>0);
-      if(POOL.length===0) throw new Error('empty');
+      const keys=Object.keys(DESTINATIONS);
+      const results=await Promise.all(keys.map(fetchPackageForDest));
+      POOL=results.filter(p=>p && p.totalZar>0);
+      if(POOL.length===0) throw new Error('no destinations returned a real priced hotel');
       ready=true;
       seed();
     }catch(err){
-      console.warn('[packages] load failed',err);
+      console.warn('[packBelt] real data load failed, belt will stay empty:',err);
       scroll.innerHTML='';
     }
   }
