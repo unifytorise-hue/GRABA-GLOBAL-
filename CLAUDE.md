@@ -124,3 +124,13 @@ Many blocks are annotated with comments referencing a Business Requirements Spec
 - All app state (`hotelPool`, `walletBalance`, `userPrefs`, `dismissedIds`, `myTrips`, etc.) is plain top-level `let`/`const` — no store/reducer pattern. Functions read and mutate these globals directly. `walletBalance`/`walletTx`/`myTrips` specifically are a client-side cache refreshed wholesale from Supabase by `loadWalletAndTrips()`, not the source of truth.
 - Hotel "dismiss" (swipe away in the belt) doesn't delete the hotel — it reprioritizes it out of view (see `BRS Distinguishing Concepts B.2.2 / B.3.1` near `attachSwipeDismiss`). This is unrelated to and unaffected by the Supabase backend.
 - Money is always South African Rand, formatted via `fmtR()`.
+
+## CRITICAL bug fix: CORS was silently breaking every real API call, project-wide
+
+Discovered while live-testing `booking-hotel-search` after `LITEAPI_KEY` was finally set: the edge function logs showed every single request failing as `OPTIONS | 405`, before the search logic ever ran. Neither `booking-hotel-search` nor `create-paystack-transaction` (the two client-invoked functions this branch calls) had any CORS handling — no `OPTIONS` handler, no `Access-Control-Allow-*` headers. Since `supabase-js`'s `.functions.invoke()` always triggers a browser CORS preflight for cross-origin JSON POSTs (github.io calling supabase.co always counts), **every real hotel search and wallet top-up from the live site has been failing at the preflight stage this entire project**, regardless of whether `LITEAPI_KEY`/`PAYSTACK_SECRET_KEY` were ever set correctly. The mock-data fallback silently absorbed this for hotel search, which is why it went undetected — the app always *looked* like it was working.
+
+Fixed by adding a shared `CORS_HEADERS` object to both functions: an `if (req.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS })` as the first line inside `Deno.serve`, and `...CORS_HEADERS` spread into every `Response`'s headers. Standard, well-established CORS handling — high confidence, unlike the LiteAPI/Sabre field-name uncertainties elsewhere in this file.
+
+`create-paystack-transaction` was also added to this repo's `supabase/functions/` for the first time here (previously deployed-only, never version-controlled).
+
+**If "the mock/fallback data keeps showing even though the secret is definitely set" ever comes up again, check CORS first.**
