@@ -2569,6 +2569,76 @@ function saveDismissedDestinations(set){
 }
 const dismissedDestinations=loadDismissedDestinations();
 
+// ---- Live destination discovery ----
+// The curated pool (~100 real cities) is large but finite. Once it's
+// exhausted (or on a return visit where a lot has already been dismissed),
+// probe a real coordinate via booking-hotel-search — the same LiteAPI-backed
+// edge function used everywhere else — and use whatever real hotel comes
+// back to create a genuinely new destination from its own city/country
+// fields, rather than showing fewer markers or inventing a placeholder
+// name. Discovered destinations are cached to localStorage so they persist
+// across visits and are merged into DESTINATIONS at startup, behaving
+// exactly like curated ones for search/dismiss from then on.
+const DISCOVERED_DEST_KEY='graba_discovered_destinations_v1';
+function loadDiscoveredDestinations(){
+  try{
+    const raw=localStorage.getItem(DISCOVERED_DEST_KEY);
+    const obj=raw?JSON.parse(raw):{};
+    return (obj && typeof obj==='object' && !Array.isArray(obj)) ? obj : {};
+  }catch{ return {}; }
+}
+function saveDiscoveredDestinations(obj){
+  try{ localStorage.setItem(DISCOVERED_DEST_KEY, JSON.stringify(obj)); }catch{}
+}
+const discoveredDestinations=loadDiscoveredDestinations();
+Object.assign(DESTINATIONS, discoveredDestinations);
+
+// Jitters around a random already-known destination (curated or previously
+// discovered) rather than sampling purely random lat/lon, since most of
+// the globe's surface is ocean/uninhabited and would just waste a real API
+// call. Tries a few different jitters before giving up for this call.
+async function discoverNewDestination(){
+  const anchors=Object.values(DESTINATIONS);
+  if(!anchors.length) return null;
+  for(let attempt=0; attempt<4; attempt++){
+    const anchor=anchors[Math.floor(Math.random()*anchors.length)];
+    const jitterLat=Math.max(-85,Math.min(85, anchor.lat + (Math.random()*10-5)));
+    const jitterLon=((anchor.lon + (Math.random()*10-5) + 540) % 360) - 180; // wrap to -180..180
+    try{
+      const {data,error}=await sb.functions.invoke('booking-hotel-search', {
+        body: { nights:3, count:5, lat:jitterLat, lon:jitterLon }
+      });
+      if(error) continue;
+      const hotels=(data && Array.isArray(data.hotels)) ? data.hotels : [];
+      // Needs a real hotel with a real city name attached — see the edge
+      // function's `city`/`country` CONFIDENCE note (best-effort passthrough
+      // from LiteAPI, unverified against a live response from this sandbox).
+      const found=hotels.find(h=>typeof h.city==='string' && h.city.trim() && typeof h.lat==='number' && typeof h.lon==='number');
+      if(!found) continue;
+      const city=found.city.trim();
+      // Skip if this real place is already known under any key, curated or
+      // previously discovered — avoids near-duplicate markers for the same
+      // city from different jitter probes landing nearby.
+      if(Object.values(DESTINATIONS).some(d=>d.city.toLowerCase()===city.toLowerCase())) continue;
+      const country=(typeof found.country==='string' && found.country.trim()) || city;
+      const key='discovered_'+city.toLowerCase().replace(/[^a-z0-9]+/g,'_')+'_'+Date.now().toString(36);
+      const entry={city, country, lat:found.lat, lon:found.lon, code:'', areas:[]};
+      DESTINATIONS[key]=entry;
+      discoveredDestinations[key]=entry;
+      saveDiscoveredDestinations(discoveredDestinations);
+      return key;
+    }catch{ /* try the next jitter */ }
+  }
+  return null;
+}
+// Serializes discovery calls app-wide (dismiss + initial shortfall-fill can
+// both want one) so they never fire concurrently against the API.
+let discoveryChain=Promise.resolve(null);
+function queueDiscovery(){
+  discoveryChain=discoveryChain.then(discoverNewDestination, discoverNewDestination);
+  return discoveryChain;
+}
+
 const MARKER_ACTIVE_COUNT=16; // how many of the full pool show as markers at once
 const globePhotoMarkersEl=document.getElementById('globePhotoMarkers');
 const globeMarkers=[]; // [{key, dest, el}], kept in sync with the DOM
@@ -2608,16 +2678,27 @@ function dismissGlobeMarker(key){
   globeMarkers.splice(idx,1);
   dismissedDestinations.add(key);
   saveDismissedDestinations(dismissedDestinations);
-  // Refill from whatever's left in the pool so the marker count stays
-  // constant — if the whole pool is exhausted this just quietly shows one
-  // fewer marker rather than erroring.
+  // Refill from whatever's left in the curated/discovered pool first; if
+  // that's exhausted, go discover a brand-new real place instead of just
+  // showing one fewer marker.
   const next=availableDestKeys()[0];
-  if(next) addGlobeMarker(next);
+  if(next){ addGlobeMarker(next); return; }
+  queueDiscovery().then(newKey=>{ if(newKey) addGlobeMarker(newKey); });
 }
 
 function seedGlobeMarkers(){
   const available=availableDestKeys();
   available.slice(0, MARKER_ACTIVE_COUNT).forEach(addGlobeMarker);
+  // Top up via live discovery if even the full pool doesn't reach the
+  // target count (e.g. a return visit that's already dismissed a lot) —
+  // one at a time, chained, not fired concurrently.
+  let shortfall=MARKER_ACTIVE_COUNT - globeMarkers.length;
+  const fillNext=()=>{
+    if(shortfall<=0) return;
+    shortfall--;
+    queueDiscovery().then(newKey=>{ if(newKey) addGlobeMarker(newKey); fillNext(); });
+  };
+  fillNext();
 }
 seedGlobeMarkers();
 

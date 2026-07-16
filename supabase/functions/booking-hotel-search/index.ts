@@ -19,9 +19,9 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
  * this function's).
  *
  * Response contract is ADDITIVE to the SerpApi version it replaces:
- *   { source, hotels: [{id, name, type, pricePerNight, rating, currency, lat, lon, offerId, liteApiId, photo}] }
- * — every previously-existing field is unchanged; `offerId`, `liteApiId`, and
- * `photo` are new (see below).
+ *   { source, hotels: [{id, name, type, pricePerNight, rating, currency, lat, lon, offerId, liteApiId, photo, city, country}] }
+ * — every previously-existing field is unchanged; `offerId`, `liteApiId`,
+ * `photo`, `city`, and `country` are new (see below).
  *
  * --- photo (real property photo, added after the frontend was found to
  * always discard this even when LiteAPI had one) ---
@@ -33,6 +33,14 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
  * LiteAPI has neither field for that property — the frontend's scene
  * fallback is the correct behavior in that case, just no longer the *only*
  * behavior.
+ *
+ * --- city / country (added for the globe destination-discovery feature) ---
+ * Passed through from LiteAPI's hotel object as-is, best-effort (see
+ * pickPhoto()-adjacent CONFIDENCE note at the mapping site — not verified
+ * against a real response). Lets the frontend label a newly-discovered real
+ * place (probed via a lat/lon this function was never asked about before)
+ * with a real city/country name instead of showing raw coordinates. `null`
+ * when LiteAPI doesn't have either field for that property.
  *
  * Requires a LITEAPI_KEY edge function secret — set via the Supabase
  * dashboard (Project Settings → Edge Functions → Secrets) or
@@ -131,6 +139,8 @@ interface HotelResult {
   offerId: string | null;
   liteApiId: string;
   photo: string | null;
+  city: string | null;
+  country: string | null;
 }
 
 // deno-lint-ignore no-explicit-any
@@ -143,6 +153,8 @@ interface LiteHotel {
   rating?: number;
   main_photo?: string;
   thumbnail?: string;
+  city?: string;
+  country?: string;
   [key: string]: unknown;
 }
 
@@ -272,6 +284,17 @@ async function priceHotels(
         offerId: rate.offerId, // see file header CONFIDENCE note — null if not found, never invented
         liteApiId: h.id, // raw LiteAPI id, unprefixed — lets the frontend re-request a single-hotel reprice later
         photo: pickPhoto(h), // real property photo when LiteAPI has one; null otherwise (frontend falls back to a scene photo)
+        // CONFIDENCE — MODERATE, same level as the rest of this file: not
+        // verified against a real response from this sandbox (no live
+        // network access here either), but city/country are standard
+        // fields on hotel-list APIs and match the sibling Lovable
+        // prototype's own LiteHotel type (liteapi-hotels.server.ts), which
+        // modeled the same two fields. Used by the frontend's globe-marker
+        // destination-discovery feature to label a newly-found real place;
+        // null here just means that feature can't label this one hotel,
+        // not a hard failure.
+        city: typeof h.city === "string" && h.city ? h.city : null,
+        country: typeof h.country === "string" && h.country ? h.country : null,
       };
     });
 
