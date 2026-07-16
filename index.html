@@ -883,7 +883,7 @@
           <div class="ptMethod"><span class="ptDot">●</span><div><div class="ptTitle">Credit / Debit Card</div><div class="ptSub">Secure checkout via Paystack</div></div></div>
           <div class="ptNote">🔒 You'll be redirected to Paystack to complete a secure payment of <span id="ptAmt">R 0</span> now — your card is charged immediately, this isn't a hold.</div>
         </div>
-        <button id="bookBtn">Book with Graba</button>
+        <button id="bookBtn">Confirm &amp; Pay</button>
       </div>
     </div>
   </div>
@@ -3135,7 +3135,7 @@ function updateTotal(){
 
   // Itemized breakdown + payment trust note — always visible, updates live
   // as nights/flight/transfers/guest change, so the total is never a
-  // surprise by the time the user reaches "Book with Graba".
+  // surprise by the time the user reaches "Confirm & Pay".
   document.getElementById('pbNightsLabel').textContent=`· ${nights} night${nights===1?'':'s'}`;
   document.getElementById('pbHotel').textContent=fmtR(hotelTotal);
   document.getElementById('pbFlight').textContent=fmtR(flightTotal);
