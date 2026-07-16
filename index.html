@@ -50,8 +50,12 @@
      they move with the globe's own slow auto-rotation rather than living in
      a separate ring/strip. Positioned via inline transform per-frame, not
      CSS layout, so left/top/width/height here are just the marker's own
-     intrinsic box. */
-  #globePhotoMarkers{position:absolute;inset:0;z-index:4;pointer-events:none;}
+     intrinsic box.
+     Hidden — superseded by the #packBelt card ring below (per reference
+     design), which now shares this same addGlobeMarker()/dismissGlobeMarker()
+     data layer. Left in place, not deleted, in case the small circular
+     badges are wanted back in some form later. */
+  #globePhotoMarkers{position:absolute;inset:0;z-index:4;pointer-events:none;display:none;}
   .globePhotoMarker{position:absolute;left:0;top:0;width:46px;height:46px;border-radius:50%;
     background-size:cover;background-position:center;box-sizing:border-box;
     border:2px solid rgba(255,255,255,.85);
@@ -475,12 +479,16 @@
      Ring is centered on the globe (~50%, 42% of viewport).
      Cards are positioned in 3D with rotateY(theta) * translateZ(radius),
      then the whole ring is tilted (rotateX) so it reads as an equatorial band. */
-  /* Hidden — replaced by real photos attached directly to the globe's
-     surface (see #globePhotoMarkers below), which move with the globe's
-     own rotation instead of living in a disconnected ring/strip element.
-     Left in place rather than deleted so the underlying data-loading code
-     isn't lost if this is wanted back in some other form later. */
-  #packBelt{display:none;pointer-events:none;position:absolute;left:50%;top:50%;
+  /* Card ring, per the reference design — cards are positioned every frame
+     from each destination's real lat/lon via project() (updateRingCards(),
+     near addGlobeMarker() below), the same rotation math the globe itself
+     and its country labels use, so the ring is genuinely riding the globe's
+     rotation rather than spinning on its own independent schedule (that
+     mismatch was the original complaint that got this hidden — see
+     db7461a). pointer-events stays none on the container itself so drags
+     in the gaps between cards fall through to the globe canvas underneath;
+     individual .packCard elements opt back in. */
+  #packBelt{pointer-events:none;position:absolute;left:50%;top:50%;
     width:0;height:0;z-index:5;
     transform:translate(-50%,-50%);
     perspective:1200px;perspective-origin:50% 50%;}
@@ -2262,6 +2270,7 @@ function animate(){
 
   drawGlobe();
   if(typeof updateGlobePhotoMarkers==='function') updateGlobePhotoMarkers();
+  if(typeof updateRingCards==='function') updateRingCards();
 }
 // Deferred via rAF rather than an eager synchronous call: animate() reaches
 // into updateGlobePhotoMarkers(), which touches `globeMarkers` — a const
@@ -2575,9 +2584,10 @@ function queueDiscovery(){
   return discoveryChain;
 }
 
-const MARKER_ACTIVE_COUNT=16; // how many of the full pool show as markers at once
+const MARKER_ACTIVE_COUNT=16; // how many of the full pool show as markers/cards at once
 const globePhotoMarkersEl=document.getElementById('globePhotoMarkers');
-const globeMarkers=[]; // [{key, dest, el}], kept in sync with the DOM
+const packBeltScrollEl=document.getElementById('packBeltScroll');
+const globeMarkers=[]; // [{key, dest, el, ringEl}], kept in sync with the DOM
 
 function availableDestKeys(){
   const activeKeys=new Set(globeMarkers.map(m=>m.key));
@@ -2589,6 +2599,84 @@ function buildMarkerPhotoUrl(key){
   const pool=SCENE_PHOTOS[scene]||SCENE_PHOTOS.beach;
   const photoId=pool[seedNum(key+'|globemark')%pool.length];
   return `https://images.unsplash.com/photo-${photoId}?auto=format&fit=crop&w=140&h=140&q=70`;
+}
+
+// Display-only category label per scene — same "invented, no real-world
+// source" spirit as the hotel-side profitPct/supplierPriority fields; SCENES
+// is a 5-way procedural bucket (see seedNum), not real destination metadata.
+const SCENE_TAGS={beach:'BEACH', sunset:'ROMANCE', city:'CITY', desert:'ADVENTURE', garden:'RETREAT'};
+
+// Card ring (per the reference "Saturn ring" design). Cards share the exact
+// same active-destination list as the (now-hidden) circular markers — built
+// and torn down together in addGlobeMarker()/dismissGlobeMarker() below —
+// so there is exactly one pool/dismiss/discovery source of truth. Position
+// is driven entirely by updateRingCards() every frame (real project() math,
+// see below), not by any state owned by this function.
+function buildRingCard(key,d){
+  const el=document.createElement('div');
+  el.className='packCard';
+  el.dataset.key=key;
+  const scene=SCENES[seedNum(key)%SCENES.length];
+  const tag=SCENE_TAGS[scene]||'STAY';
+  const city=(d.city.split(',')[0]||d.city);
+  // Same "static, developer-authored content" reasoning as addGlobeMarker
+  // below — safe to interpolate without escaping.
+  el.innerHTML=`
+    <div class="pcFace">
+      <div class="pcImg" style="background-image:url('${buildMarkerPhotoUrl(key)}')"></div>
+      <div class="pcShade"></div>
+      <div class="pcTag">${tag}</div>
+      <div class="pcLabel">
+        <div class="pcCity">${city}</div>
+        <div class="pcCountry">${d.country||''}</div>
+      </div>
+    </div>`;
+  attachRingCardGestures(el,key,d);
+  return el;
+}
+
+// Tap to fly to the destination (single click/tap — no double-tap needed,
+// unlike the old hotel-package cards, since there's no "book this" action
+// from a bare destination suggestion). Swipe up to dismiss, same gesture
+// and threshold as the old belt.
+function attachRingCardGestures(el,key,d){
+  let startY=0,dy=0,active=false,pointerId=null,dragged=false;
+  el.addEventListener('pointerdown',(e)=>{
+    active=true; pointerId=e.pointerId; startY=e.clientY; dy=0; dragged=false;
+    try{ el.setPointerCapture(pointerId); }catch{}
+  });
+  el.addEventListener('pointermove',(e)=>{
+    if(!active) return;
+    dy=e.clientY-startY;
+    if(!dragged && Math.abs(dy)>8) dragged=true;
+    if(dragged){
+      el.classList.add('dragging');
+      const up=Math.min(0,dy);
+      el.style.transform=`translateY(${up}px) scale(${1+up/2000})`;
+      el.style.opacity=String(Math.max(.3, 1 - Math.abs(up)/220));
+      e.preventDefault();
+    }
+  });
+  const release=()=>{
+    if(!active) return;
+    active=false;
+    try{ el.releasePointerCapture(pointerId); }catch{}
+    el.classList.remove('dragging');
+    if(dragged && dy<-70){
+      el.classList.add('dismiss');
+      dismissGlobeMarker(key);
+    } else {
+      el.style.transform=''; el.style.opacity='';
+    }
+  };
+  el.addEventListener('pointerup',release);
+  el.addEventListener('pointercancel',release);
+  el.addEventListener('click',()=>{
+    if(dragged){ dragged=false; return; }
+    currentDestKey=key;
+    addToSearchHistory(key);
+    flyToLatLon(d.lat, d.lon, 'search');
+  });
 }
 
 function addGlobeMarker(key){
@@ -2604,13 +2692,16 @@ function addGlobeMarker(key){
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
   </button>`;
   globePhotoMarkersEl.appendChild(el);
-  globeMarkers.push({key, dest:d, el});
+  const ringEl = packBeltScrollEl ? buildRingCard(key,d) : null;
+  if(ringEl) packBeltScrollEl.appendChild(ringEl);
+  globeMarkers.push({key, dest:d, el, ringEl});
 }
 
 function dismissGlobeMarker(key){
   const idx=globeMarkers.findIndex(m=>m.key===key);
   if(idx===-1) return;
   globeMarkers[idx].el.remove();
+  if(globeMarkers[idx].ringEl) globeMarkers[idx].ringEl.remove();
   globeMarkers.splice(idx,1);
   dismissedDestinations.add(key);
   saveDismissedDestinations(dismissedDestinations);
@@ -2667,6 +2758,35 @@ function updateGlobePhotoMarkers(){
     m.el.style.transform=`translate(${sx}px, ${sy}px) translate(-50%,-50%) scale(${scale})`;
     m.el.style.opacity=String(Math.max(0.15, depth));
     m.el.style.zIndex=String(Math.round(1000+p.z*500));
+  }
+}
+
+// Positions each ring card from the destination's real current lat/lon —
+// same project() call as updateGlobePhotoMarkers() above, so the ring
+// genuinely rotates in lockstep with the globe (angleY/angleX) rather than
+// on an independent timer. theta is the destination's angle around the
+// vertical axis as currently seen by the camera (0 = facing the viewer,
+// ±π/2 = at the left/right edge, π = directly behind) — the same angle the
+// old ring's CSS rotateY/translateZ trick expects, just computed from the
+// globe's real rotation state instead of a manually-advanced counter.
+const RING_RADIUS=baseRadius*0.8875; // scales with the globe so the ring stays proportional on every screen size
+function updateRingCards(){
+  for(const m of globeMarkers){
+    if(!m.ringEl) continue;
+    if(m.ringEl.classList.contains('dragging')||m.ringEl.classList.contains('dismiss')) continue;
+    const p=project(m.dest.lon, m.dest.lat, angleY, angleX);
+    const theta=Math.atan2(p.x, p.z);
+    const c=Math.cos(theta);
+    const depth=c*0.5+0.5;
+    const scl=0.42+0.68*depth;
+    m.ringEl.style.transform=
+      `rotateY(${theta}rad) translateZ(${RING_RADIUS}px)`+
+      ` rotateY(${-theta}rad)`+
+      ` scale(${scl})`;
+    const front=depth, back=Math.max(0,-c);
+    m.ringEl.style.opacity=String(Math.max(0.05, front*front*1.05 - back*0.4));
+    m.ringEl.style.filter=c<0.25?`blur(${Math.min(4,(0.25-c)*4)}px)`:'none';
+    m.ringEl.style.zIndex=String(1000+Math.round(c*500));
   }
 }
 
@@ -4194,370 +4314,30 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
   document.addEventListener('keydown',(e)=>{ if(e.key==='Escape' && panel.classList.contains('on')) closePanel(); });
 })();
 
-/* ================= INFINITY BELT — real API packages ================= */
+/* ================= INFINITY BELT — swipe-up hint =================
+   The ring's cards, pool, dismiss-persistence and rotation are now built
+   entirely by addGlobeMarker()/dismissGlobeMarker()/updateRingCards() up
+   near GLOBE PHOTO MARKERS, sharing that one data layer (full curated +
+   discovered DESTINATIONS pool, permanent localStorage dismiss, live
+   discovery so it never runs out) instead of a separate hotel-priced POOL
+   that only covered the original 10 destinations and required a live
+   network round-trip per card just to render. All that's left here is the
+   one-time "swipe up to dismiss" hint. */
 (function(){
-  const scroll=document.getElementById('packBeltScroll');
-  if(!scroll) return;
-
-  // Endless belt: dismissing a card only removes it from view briefly; the
-  // deck refills forever from the pool so the ring is never empty.
-  const fmtPrice=(n)=>{
-    if(n>=1000){
-      const k=n/1000;
-      return 'R'+(k>=10?Math.round(k):k.toFixed(1))+'k';
-    }
-    return 'R'+n;
-  };
-  const travelersLabel=(n)=>n===1?'1 traveller':n+' travellers';
-
-  let POOL=[];        // packages from API
-  let queue=[];       // shuffled queue — refills from remaining POOL
-  let ready=false;
-  const packDismissed=new Set();  // ids the customer swiped away — never re-shown
-
-  function onBeltIds(){
-    const s=new Set();
-    scroll.querySelectorAll('.packCard').forEach(c=>{ if(c.dataset.id) s.add(c.dataset.id); });
-    return s;
-  }
-  function remainingPool(){ return POOL.filter(p=>!packDismissed.has(p.id)); }
-  function refillQueue(){
-    const pool=remainingPool();
-    if(pool.length===0){ queue=[]; return; }
-    queue=pool.slice().sort(()=>Math.random()-.5);
-  }
-  function pickNext(){
-    const onBelt=onBeltIds();
-    // Try to find a card not already on the belt.
-    for(let attempts=0; attempts<2; attempts++){
-      if(queue.length===0) refillQueue();
-      if(queue.length===0) return undefined;
-      // Prefer an id not currently displayed.
-      const idx=queue.findLastIndex ? queue.findLastIndex(p=>!onBelt.has(p.id))
-                                    : (()=>{ for(let i=queue.length-1;i>=0;i--) if(!onBelt.has(queue[i].id)) return i; return -1; })();
-      if(idx>=0){ const [p]=queue.splice(idx,1); return p; }
-      // Every remaining queue entry is already on belt — refill and retry once.
-      queue=[];
-    }
-    return undefined;
-  }
-
-  const TAG_COLOR='linear-gradient(135deg,#c026d3,#7c3aed)';
-
-  function buildCard(p){
-    const el=document.createElement('div');
-    el.className='packCard';
-    el.dataset.id=p.id;
-    const tagBg=TAG_COLOR;
-    el.innerHTML=`
-      <div class="pcFace">
-        <div class="pcImg"></div>
-        <div class="pcShade"></div>
-        <div class="pcTag" style="background:${tagBg}">${p.tag||''}</div>
-        <div class="pcLabel">
-          <div class="pcCity">${p.city}</div>
-          <div class="pcCountry">${p.country||''}</div>
-          <div class="pcOffer">${p.days} days · ${p.travelers} travellers</div>
-          <div class="pcPrice">total ${fmtPrice(p.totalZar)}</div>
-        </div>
-      </div>`;
-    if(p.photo){
-      const img=new Image();
-      img.onload=()=>{ el.querySelector('.pcImg').style.backgroundImage=`url("${p.photo}")`; };
-      img.onerror=()=>{ el.querySelector('.pcImg').style.backgroundImage='url("assets/fallback-destination.jpg")'; };
-      img.src=p.photo;
-    } else {
-      el.querySelector('.pcImg').style.backgroundImage='url("assets/fallback-destination.jpg")';
-    }
-    attachDrag(el,p);
-    let tapTimer=null;
-    el.addEventListener('click',()=>{
-      if(el.dataset.dragged==='1'){ el.dataset.dragged=''; return; }
-      if(tapTimer){ // second tap → double-tap: go book this destination
-        clearTimeout(tapTimer); tapTimer=null;
-        try{
-          const input=document.getElementById('destInput');
-          if(input){ input.value=p.city; }
-          if(typeof goSearch==='function') goSearch();
-        }catch{}
-        return;
-      }
-      tapTimer=setTimeout(()=>{
-        tapTimer=null;
-        // Single tap toggles the ring: stop if running, resume if paused.
-        paused=!paused;
-        if(paused){ el.classList.add('opaque'); }
-        else {
-          document.querySelectorAll('.packCard.opaque').forEach(c=>c.classList.remove('opaque'));
-          if(typeof showSwipeHint==='function') showSwipeHint();
-        }
-      }, 240);
-    });
-    return el;
-  }
-
-  function attachDrag(el,p){
-    let startY=0,startX=0,dy=0,dx=0,lastX=0,active=false,pointerId=null,axis='';
-    const down=(e)=>{
-      active=true; pointerId=e.pointerId; axis='';
-      startY=e.clientY; startX=e.clientX; lastX=e.clientX; dy=0; dx=0;
-      el.setPointerCapture(pointerId);
-    };
-    const move=(e)=>{
-      if(!active) return;
-      dy=e.clientY-startY; dx=e.clientX-startX;
-      if(!axis && (Math.abs(dx)>8 || Math.abs(dy)>8)){
-        axis = Math.abs(dy) > Math.abs(dx) ? 'y' : 'x';
-        el.dataset.dragged='1';
-        paused=true;
-      }
-      if(axis==='y'){
-        el.classList.add('dragging');
-        const up=Math.min(0,dy);
-        el.style.transform=`translateY(${up}px) scale(${1+up/2000})`;
-        el.style.opacity=String(Math.max(.3, 1 - Math.abs(up)/220));
-        e.preventDefault();
-      } else if(axis==='x'){
-        // Scrub the whole ring horizontally, just like dragging the belt.
-        const stepX=e.clientX-lastX;
-        baseAngle -= stepX*0.006;
-        lastX=e.clientX;
-        e.preventDefault();
-      }
-    };
-    const up=()=>{
-      if(!active) return;
-      active=false;
-      try{ el.releasePointerCapture(pointerId); }catch{}
-      el.classList.remove('dragging');
-      if(axis==='y' && dy<-70){
-        packDismissed.add(p.id);
-        queue=queue.filter(q=>q.id!==p.id);
-        el.classList.add('dismiss');
-        setTimeout(()=>{ el.remove(); if(remainingPool().length>0) appendNew(); assertBeltInvariant('dismiss'); }, 340);
-      } else {
-        el.style.transform=''; el.style.opacity='';
-        setTimeout(()=>{ el.dataset.dragged=''; }, 50);
-      }
-    };
-    el.addEventListener('pointerdown',down);
-    el.addEventListener('pointermove',move);
-    el.addEventListener('pointerup',up);
-    el.addEventListener('pointercancel',up);
-  }
-
-  // Invariant: no card currently on the belt may be in packDismissed.
-  // Returns {ok, offenders} and (in dev) logs a loud console.error.
-  function assertBeltInvariant(tag){
-    const offenders=[];
-    scroll.querySelectorAll('.packCard').forEach(el=>{
-      const id=el.dataset.id;
-      if(id && packDismissed.has(id)) offenders.push(id);
-    });
-    if(offenders.length){
-      console.error('[belt-invariant] dismissed cards on belt',{tag,offenders,dismissed:[...packDismissed]});
-    }
-    return {ok:offenders.length===0, offenders};
-  }
-  // Expose for manual testing from the console: window.__grabaCheckBelt()
-  window.__grabaCheckBelt=assertBeltInvariant;
-
-  function appendNew(){
-    if(!ready) return;
-    const p=pickNext(); if(!p) return;
-    if(packDismissed.has(p.id)){ console.error('[belt-invariant] pickNext returned dismissed id',p.id); return; }
-    scroll.appendChild(buildCard(p));
-    assertBeltInvariant('appendNew');
-  }
-
-  function seed(){
-    scroll.innerHTML='';
-    refillQueue();
-    // Fill the entire ring so cards are visible all the way around the globe.
-    const count=10;
-    for(let i=0;i<count;i++){
-      const p=pickNext();
-      if(p && !packDismissed.has(p.id)) scroll.appendChild(buildCard(p));
-    }
-    assertBeltInvariant('seed');
-  }
-
-  function renderSkeletons(){
-    scroll.innerHTML='';
-    for(let i=0;i<8;i++){
-      const s=document.createElement('div');
-      s.className='packCard';
-      s.innerHTML='<div class="pcFace" style="background:linear-gradient(180deg,rgba(40,20,70,.55),rgba(15,7,30,.85))"><div class="pcShade"></div></div>';
-      scroll.appendChild(s);
-    }
-  }
-
-  // Marketing category label per curated destination — not real data, just a
-  // display tag (same spirit as the "tag" pill Lovable's reference shows).
-  const PACKAGE_TAGS={
-    zanzibar:'ISLAND', dubai:'CITY', maldives:'ISLAND', 'cape town':'CITY',
-    johannesburg:'CITY', durban:'BEACH', london:'CITY', paris:'ROMANCE',
-    'new york':'CITY', mauritius:'ISLAND'
-  };
-  const PACKAGE_DAYS=3, PACKAGE_TRAVELERS=2;
-
-  // Real hotel pricing for one destination, via the same booking-hotel-search
-  // edge function (LiteAPI) the map view uses — count:5 keeps this light
-  // since the belt only needs one representative priced hotel per city, not
-  // a full search result set.
-  async function fetchPackageForDest(key){
-    const dest=DESTINATIONS[key]; if(!dest) return null;
-    try{
-      const {data, error}=await sb.functions.invoke('booking-hotel-search', {
-        body: { query: `${dest.city}, ${dest.country}`, nights: PACKAGE_DAYS, count: 5, lat: dest.lat, lon: dest.lon }
-      });
-      if(error) throw error;
-      const hotels=(data && Array.isArray(data.hotels)) ? data.hotels : [];
-      const hotel=hotels.find(h=>typeof h.pricePerNight==='number' && h.pricePerNight>0);
-      if(!hotel) return null;
-      return {
-        id:'pkg-'+key,
-        city:(dest.city.split(',')[0]||dest.city),
-        country:dest.country,
-        tag:PACKAGE_TAGS[key]||'STAY',
-        days:PACKAGE_DAYS,
-        travelers:PACKAGE_TRAVELERS,
-        totalZar:Math.round(hotel.pricePerNight*PACKAGE_DAYS),
-        photo:hotel.photo || null
-      };
-    }catch(err){
-      console.warn('[packBelt] real hotel lookup failed for', key, err);
-      return null;
-    }
-  }
-
-  // Real data, built from the same curated DESTINATIONS list + real LiteAPI
-  // pricing used elsewhere — replaces the old /api/public/packages call,
-  // which was a leftover Next.js-only route from the Lovable prototype merge
-  // that 404'd on this static site (the belt has likely never shown real
-  // cards on the live site until this fix).
-  async function load(){
-    renderSkeletons();
-    try{
-      const keys=Object.keys(DESTINATIONS);
-      const results=await Promise.all(keys.map(fetchPackageForDest));
-      POOL=results.filter(p=>p && p.totalZar>0);
-      if(POOL.length===0) throw new Error('no destinations returned a real priced hotel');
-      ready=true;
-      seed();
-    }catch(err){
-      console.warn('[packBelt] real data load failed, belt will stay empty:',err);
-      scroll.innerHTML='';
-    }
-  }
-
-  /* ===== Saturn-style orbital layout =====
-     Cards are children of #packBeltScroll (a preserve-3d container tilted with
-     rotateX). We continuously advance a base angle and place each card at
-     rotateY(theta) * translateZ(radius). Depth cue is applied per-card by
-     reading the resulting world-Z from sin/cos of the current angle. */
-  const RING_RADIUS=baseRadius*0.8875; // scales with the globe so the fan stays proportional on every screen size
-  let baseAngle=0, lastT=0, paused=false, spinDir=-1, spinSpeed=0.07;
-  function positionRing(){
-    const cards=[...scroll.children];
-    const n=cards.length; if(!n) return;
-    const step=(Math.PI*2)/n;
-    for(let i=0;i<n;i++){
-      const el=cards[i];
-      if(el.classList.contains('dragging')||el.classList.contains('dismiss')) continue;
-      const theta=baseAngle+i*step;
-      const c=Math.cos(theta);
-      const depth=c*0.5+0.5;
-      const scl=0.42+0.68*depth;
-      el.style.transform=
-        `rotateY(${theta}rad) translateZ(${RING_RADIUS}px)`+
-        ` rotateY(${-theta}rad)`+
-        ` scale(${scl})`;
-      const front=depth;
-      const back=Math.max(0,-c);
-      el.style.opacity=String(Math.max(0.05, front*front*1.05 - back*0.4));
-      el.style.filter=c<0.25?`blur(${Math.min(4,(0.25-c)*4)}px)`:'none';
-      el.style.zIndex=String(1000+Math.round(c*500));
-    }
-  }
-  function tick(t){
-    if(!lastT) lastT=t;
-    const dt=(t-lastT)/1000; lastT=t;
-    if(!paused) baseAngle+=dt*spinSpeed*spinDir;
-    positionRing(t);
-    requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
-
-  /* Tap to pause / resume. Swipe horizontally to scrub the ring. */
-  const belt=document.getElementById('packBelt');
-  belt.style.pointerEvents='auto';
-  let dragging=false, startX=0, startY=0, moved=false, lastMoveX=0, lastMoveT=0, velocity=0;
-  const DRAG_THRESHOLD=6;
-  belt.addEventListener('pointerdown',(e)=>{
-    // Never hijack pointers that start on a card — let the card handle
-    // its own tap / vertical swipe-to-dismiss.
-    if(e.target.closest && e.target.closest('.packCard')) return;
-    dragging=true; moved=false;
-    startX=e.clientX; startY=e.clientY;
-    lastMoveX=e.clientX; lastMoveT=performance.now();
-    velocity=0;
-    try{belt.setPointerCapture(e.pointerId);}catch(_){}
-  });
-  belt.addEventListener('pointermove',(e)=>{
-    if(!dragging) return;
-    const dx=e.clientX-startX, dy=e.clientY-startY;
-    if(!moved && (Math.abs(dx)>DRAG_THRESHOLD||Math.abs(dy)>DRAG_THRESHOLD)){
-      if(Math.abs(dx)>Math.abs(dy)){ moved=true; paused=true; }
-      else { dragging=false; return; }
-    }
-    if(moved){
-      const now=performance.now();
-      const stepX=e.clientX-lastMoveX;
-      baseAngle -= stepX*0.006;
-      const dt=Math.max(1,now-lastMoveT);
-      velocity = -stepX*0.006 / (dt/1000);
-      lastMoveX=e.clientX; lastMoveT=now;
-      e.preventDefault();
-    }
-  });
-  function endDrag(e){
-    if(!dragging) return;
-    const wasMoved=moved;
-    dragging=false; moved=false;
-    try{belt.releasePointerCapture(e.pointerId);}catch(_){}
-    if(!wasMoved){
-      // Treat as a tap: toggle pause.
-      paused=!paused;
-    } else {
-      // Resume auto-spin, direction based on swipe velocity.
-      if(Math.abs(velocity)>0.05){ spinDir = velocity>0 ? 1 : -1; }
-      paused=false;
-    }
-  }
-  belt.addEventListener('pointerup',endDrag);
-  belt.addEventListener('pointercancel',endDrag);
-
-  /* Swipe-up hint: shows once on first ever open (2.5s in), and again
-     every time the customer resumes the belt from a paused state. */
   const hintEl=document.getElementById('packSwipeHint');
+  if(!hintEl) return;
   let hintTimer=null, hintHideTimer=null;
   function showSwipeHint(){
-    if(!hintEl) return;
     clearTimeout(hintTimer); clearTimeout(hintHideTimer);
     hintTimer=setTimeout(()=>{ hintEl.classList.add('on'); }, 150);
     hintHideTimer=setTimeout(()=>{ hintEl.classList.remove('on'); }, 3500);
   }
-  (function firstTime(){
-    const HINT_KEY='graba_pack_swipehint_shown_v3';
-    try{ if(localStorage.getItem(HINT_KEY)) return; }catch{}
-    setTimeout(()=>{
-      showSwipeHint();
-      try{ localStorage.setItem(HINT_KEY,'1'); }catch{}
-    }, 2500);
-  })();
-
-  load();
+  const HINT_KEY='graba_pack_swipehint_shown_v3';
+  try{ if(localStorage.getItem(HINT_KEY)) return; }catch{}
+  setTimeout(()=>{
+    showSwipeHint();
+    try{ localStorage.setItem(HINT_KEY,'1'); }catch{}
+  }, 2500);
 })();
 </script>
 
