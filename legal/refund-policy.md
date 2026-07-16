@@ -10,11 +10,10 @@ Graba is a booking intermediary. When you book a flight, hotel, or transfer, you
 
 Where a booking **is** eligible for a change or refund under the supplier's rules, we'll pass that through, minus any non-refundable service fee we've disclosed to you at the time of booking. **[DECIDE: does Graba charge its own booking/service fee on top of supplier prices? If so, state whether it's refundable.]**
 
-## 2. Wallet top-ups
+## 2. Payment errors
 
-- Money added to your Travel Wallet via Stripe is intended to be spent on bookings.
-- [DECIDE POLICY: Can an unspent wallet top-up be refunded back to the original card on request? If yes, state the process and any time limit. If no, state that clearly — many wallet-based products make top-ups non-refundable except by law, but this needs a deliberate decision, not a default.]
-- If a wallet top-up was made in error or due to a technical fault (e.g. the same top-up charged twice due to a webhook issue), contact [SUPPORT EMAIL] and we will investigate and refund confirmed errors.
+- You pay by card at the time of booking (via Paystack); a booking is only created once that payment is confirmed. If a payment fails, no booking is made and no charge should occur.
+- If you're charged without a matching booking appearing in My Trips, or charged more than once for the same booking (e.g. due to a technical fault), contact [SUPPORT EMAIL] with your payment reference and we will investigate and refund confirmed errors to your original payment method.
 
 ## 3. Cancelling a booking
 
@@ -22,7 +21,7 @@ To cancel or change a booking:
 
 1. Contact [SUPPORT EMAIL / a future in-app cancellation flow] with your booking reference.
 2. We'll check the supplier's fare rules for your specific booking.
-3. If a refund or credit is due from the supplier, we'll process it back to your Travel Wallet [or original payment method — DECIDE] within [X business days] of the supplier confirming it.
+3. If a refund or credit is due from the supplier, we'll process it back to your original payment method within [X business days] of the supplier confirming it.
 
 ## 4. Flight cancellations/changes by the airline
 

@@ -22,12 +22,12 @@ You must be at least [18] years old and legally capable of entering into binding
 - You must provide accurate information when registering and when making a booking (especially traveller names, which must match travel documents exactly — incorrect names can result in denied boarding with no recourse against us).
 - We may suspend or terminate accounts we reasonably believe are being used fraudulently or in violation of these Terms.
 
-## 4. The Travel Wallet
+## 4. Payment
 
-- The Travel Wallet is a stored-balance feature: you top it up with real money (processed by our payment provider) and can spend the balance on bookings made through Graba.
-- Wallet balances are **not** a bank deposit, are not interest-bearing, and are not covered by any deposit insurance scheme.
-- [Wallet balances do not expire / Wallet balances expire after N months of inactivity — DECIDE AND STATE POLICY]
-- We do not currently support withdrawing wallet balance back to a card or bank account except as required by law or as described in our Refund & Cancellation Policy.
+- You pay by credit or debit card at the time of booking, processed by our payment provider (Paystack). We do not receive or store your full card number.
+- Your card is charged immediately when you complete a booking — this is a real charge, not a hold or pre-authorization.
+- A booking is only created once payment has been confirmed by our payment provider; if a payment fails or is cancelled, no booking is made and you are not charged.
+- [DECIDE: does Graba charge its own booking/service fee on top of supplier prices? If so, state whether it's included in the displayed total.]
 
 ## 5. Bookings and pricing
 

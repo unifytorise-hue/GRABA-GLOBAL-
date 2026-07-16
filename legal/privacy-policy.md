@@ -14,7 +14,6 @@ This policy explains how [LEGAL ENTITY NAME] ("Graba", "we", "us") collects, use
 
 - **Account data**: email address, and anything else you provide at signup.
 - **Booking data**: traveller names, destination, dates, flight/hotel selections, payment amount and method (we do not store full card numbers — see Section 4).
-- **Wallet/transaction data**: top-up amounts, transaction history, current balance.
 - **Technical data**: standard web request metadata (IP address, browser type) collected by our hosting/infrastructure providers as part of normal operation.
 
 We do not currently collect passport numbers, ID numbers, or other special/sensitive categories of personal information as defined by POPIA. **[If real flight/hotel booking is added later (Sabre EnhancedAirBook, hotel supplier APIs), that will very likely require collecting passport/ID data — this section and the lawful-basis analysis below must be revisited before that happens.]**
@@ -23,7 +22,7 @@ We do not currently collect passport numbers, ID numbers, or other special/sensi
 
 - To create and manage your account.
 - To search, price, and process bookings on your behalf with third-party suppliers.
-- To process wallet top-ups and maintain an accurate transaction ledger.
+- To process payment for your bookings.
 - To communicate with you about your bookings (confirmations, changes, support).
 - [To send marketing communications, if applicable — requires separate opt-in consent under POPIA; do not bundle with the above.]
 
@@ -31,10 +30,11 @@ We do not currently collect passport numbers, ID numbers, or other special/sensi
 
 We share the minimum necessary data with:
 
-- **Payment processor** ([Stripe] or successor) — to process wallet top-ups. We do not receive or store your full card number; the payment processor handles card data directly (PCI DSS compliance is the payment processor's responsibility for the card-data portion of the flow, not ours, provided we use their hosted checkout as designed).
+- **Payment processor** (Paystack) — to process payment for your bookings. We do not receive or store your full card number; the payment processor handles card data directly (PCI DSS compliance is the payment processor's responsibility for the card-data portion of the flow, not ours, provided we use their hosted checkout as designed).
 - **Flight search/booking supplier** (Sabre) — to search and, in future, book flights on your behalf.
-- **Hotel search supplier** (SerpApi/Google Hotels, and in future a hotel booking partner) — to search and display hotel availability.
-- **Our infrastructure/hosting provider** (Supabase) — as a data processor storing account, booking, and wallet data on our behalf, under their own data processing terms.
+- **Hotel search/booking supplier** (LiteAPI) — to search, price, and reserve hotel rooms on your behalf.
+- **AI concierge provider** (Anthropic, for the in-app "Gabriella" chat assistant) — your chat messages are sent to Anthropic to generate a response; Gabriella can search flights/hotels on your behalf but cannot book or charge anything without you separately confirming in the app.
+- **Our infrastructure/hosting provider** (Supabase) — as a data processor storing account and booking data on our behalf, under their own data processing terms.
 
 We do not sell your personal information.
 
