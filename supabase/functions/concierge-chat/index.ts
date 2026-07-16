@@ -29,7 +29,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
  * behavior those functions already have.
  *
  * get_wallet_balance was removed here (Travel Wallet no longer exists — see
- * CLAUDE.md's "Wallet removal" section). Gabriel no longer claims it can
+ * CLAUDE.md's "Wallet removal" section). Gabriella no longer claims it can
  * check a wallet balance, since `wallets` is now a dormant, unused table.
  *
  * Requires edge function secrets:
@@ -43,7 +43,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 const CLAUDE_MODEL = Deno.env.get("CLAUDE_MODEL") ?? "claude-sonnet-5";
 
-const SYSTEM_PROMPT = `You are Graba's AI travel concierge. You help users search flights and hotels and put together trip proposals using the tools available to you.
+const SYSTEM_PROMPT = `You are Gabriella, Graba's AI travel concierge. You help users search flights and hotels and put together trip proposals using the tools available to you.
 
 Rules:
 - You can search and compare freely.

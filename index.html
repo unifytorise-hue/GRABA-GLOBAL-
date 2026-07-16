@@ -3316,23 +3316,23 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
   // ---------- Build DOM ----------
   const fab=document.createElement('button');
   fab.id='gabrielFab';
-  fab.setAttribute('aria-label','Ask Gabriel, AI travel assistant');
+  fab.setAttribute('aria-label','Ask Gabriella, AI travel assistant');
   fab.innerHTML=`
     <span class="gGlow"></span>
     <span class="gRing">
       <svg viewBox="0 0 100 100" aria-hidden="true">
         <defs><path id="gTextPath" d="M 50, 50 m -42, 0 a 42,42 0 1,1 84,0 a 42,42 0 1,1 -84,0"/></defs>
-        <text><textPath href="#gTextPath" startOffset="0">YOUR AI TRAVEL AGENT - GABRIEL · YOUR AI TRAVEL AGENT - GABRIEL ·</textPath></text>
+        <text><textPath href="#gTextPath" startOffset="0">YOUR AI TRAVEL AGENT - GABRIELLA · YOUR AI TRAVEL AGENT - GABRIELLA ·</textPath></text>
       </svg>
     </span>
     <span class="gOrbit"></span>
-    <span class="gCore"><span class="gInner"></span><img class="gMark" src="/__l5e/assets-v1/8040e039-4b16-493c-8ea7-9da20d25aa15/graba-g-button.png" alt="Gabriel"></span>`;
+    <span class="gCore"><span class="gInner"></span><img class="gMark" src="/__l5e/assets-v1/8040e039-4b16-493c-8ea7-9da20d25aa15/graba-g-button.png" alt="Gabriella"></span>`;
   document.body.appendChild(fab);
 
   const hint=document.createElement('div');
   hint.id='gabrielHint';
   hint.className='hide';
-  hint.innerHTML='<div class="pill"><span class="dot"></span><span class="txt">SPIN • TAP • TELL GABRIEL</span></div><div class="tail"></div>';
+  hint.innerHTML='<div class="pill"><span class="dot"></span><span class="txt">SPIN • TAP • TELL GABRIELLA</span></div><div class="tail"></div>';
   document.body.appendChild(hint);
 
   const panel=document.createElement('div');
@@ -3349,12 +3349,12 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
       <div class="gHead">
         <button id="gThreadsBtn" aria-label="Threads">☰</button>
         <div class="avatar">G</div>
-        <div class="who"><div class="n">Gabriel</div><div class="r">Your AI Travel Agent</div></div>
+        <div class="who"><div class="n">Gabriella</div><div class="r">Your AI Travel Agent</div></div>
         <button id="gClose" aria-label="Close">✕</button>
       </div>
       <div id="gMessages"></div>
       <form id="gComposer">
-        <textarea id="gInput" rows="1" placeholder="Ask Gabriel anything about your trip…" autocomplete="off"></textarea>
+        <textarea id="gInput" rows="1" placeholder="Ask Gabriella anything about your trip…" autocomplete="off"></textarea>
         <button id="gSend" type="submit" aria-label="Send">→</button>
       </form>
     </div>`;
@@ -3419,7 +3419,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
     if(!t || !t.messages.length){
       const empty=document.createElement('div');
       empty.className='gEmpty';
-      empty.innerHTML=`<div class="gEmojiRow">Hello, I'm Gabriel.</div>
+      empty.innerHTML=`<div class="gEmojiRow">Hello, I'm Gabriella.</div>
         <p class="gCta">Spin the globe, tap a place, or tell me where you want to go.</p>
         <div class="gCatLbl">Pick a vibe · starts a new thread</div>
         <div class="gCatRow">${CATEGORIES.map((c,i)=>`<button class="gCat" type="button" data-cat="${i}"><span class="gCatIco">${c.ico}</span><span>${escapeHtml(c.label)}</span></button>`).join('')}</div>
@@ -3533,7 +3533,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
       });
       typing.remove();
       if(error || !data){
-        const msg=(error && error.message) || 'Gabriel is unavailable right now. Please try again.';
+        const msg=(error && error.message) || 'Gabriella is unavailable right now. Please try again.';
         const e=document.createElement('div'); e.className='gErr'; e.textContent=msg;
         messagesEl.appendChild(e); scrollBottom();
         console.warn('gabriel error',error);
@@ -3613,7 +3613,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
   // Introduce the hint, then fade it to a calmer state after a few seconds
   setTimeout(()=>{ hint.className='hide'; }, 8000);
 
-  fab.addEventListener('click',()=>{ if(requireAuth('Sign in to chat with Gabriel')) openPanel(); });
+  fab.addEventListener('click',()=>{ if(requireAuth('Sign in to chat with Gabriella')) openPanel(); });
   closeBtn.addEventListener('click',closePanel);
   panel.addEventListener('click',(e)=>{ if(e.target===panel) closePanel(); });
   threadsBtn.addEventListener('click',()=>threadsPane.classList.toggle('on'));
