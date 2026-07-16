@@ -19,9 +19,20 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
  * this function's).
  *
  * Response contract is ADDITIVE to the SerpApi version it replaces:
- *   { source, hotels: [{id, name, type, pricePerNight, rating, currency, lat, lon, offerId, liteApiId}] }
- * — every previously-existing field is unchanged; `offerId` and `liteApiId`
- * are new (see below).
+ *   { source, hotels: [{id, name, type, pricePerNight, rating, currency, lat, lon, offerId, liteApiId, photo}] }
+ * — every previously-existing field is unchanged; `offerId`, `liteApiId`, and
+ * `photo` are new (see below).
+ *
+ * --- photo (real property photo, added after the frontend was found to
+ * always discard this even when LiteAPI had one) ---
+ * LiteAPI's hotel-list response includes `main_photo`/`thumbnail` per
+ * property; previously this function silently dropped both, so the frontend
+ * always fell back to a generic scene photo (`SCENE_PHOTOS`, picked by a hash
+ * of the hotel id — unrelated to the hotel's real location or appearance),
+ * even for hotels LiteAPI did have a real photo for. `photo` is `null` when
+ * LiteAPI has neither field for that property — the frontend's scene
+ * fallback is the correct behavior in that case, just no longer the *only*
+ * behavior.
  *
  * Requires a LITEAPI_KEY edge function secret — set via the Supabase
  * dashboard (Project Settings → Edge Functions → Secrets) or
@@ -119,6 +130,7 @@ interface HotelResult {
   lon: number | null;
   offerId: string | null;
   liteApiId: string;
+  photo: string | null;
 }
 
 // deno-lint-ignore no-explicit-any
@@ -129,7 +141,19 @@ interface LiteHotel {
   longitude?: number;
   stars?: number;
   rating?: number;
+  main_photo?: string;
+  thumbnail?: string;
   [key: string]: unknown;
+}
+
+// LiteAPI's list endpoint gives each property a main_photo (preferred) and/or
+// thumbnail — this is the only place a real property photo comes from, so a
+// missing/blank value here means the frontend has no choice but to fall back
+// to a generic scene photo for that hotel.
+function pickPhoto(h: LiteHotel): string | null {
+  if (typeof h.main_photo === "string" && h.main_photo) return h.main_photo;
+  if (typeof h.thumbnail === "string" && h.thumbnail) return h.thumbnail;
+  return null;
 }
 
 function fmtDate(d: Date): string {
@@ -247,6 +271,7 @@ async function priceHotels(
         lon: typeof h.longitude === "number" ? h.longitude : null,
         offerId: rate.offerId, // see file header CONFIDENCE note — null if not found, never invented
         liteApiId: h.id, // raw LiteAPI id, unprefixed — lets the frontend re-request a single-hotel reprice later
+        photo: pickPhoto(h), // real property photo when LiteAPI has one; null otherwise (frontend falls back to a scene photo)
       };
     });
 
