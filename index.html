@@ -1816,6 +1816,27 @@ EARTH_TEX.onload=()=>{
 EARTH_TEX.onerror=()=>{ console.warn('[globe] earth-texture.jpg failed to load — using procedural fallback rendering.'); };
 EARTH_TEX.src='assets/earth-texture.jpg';
 
+// Bilinear-filtered texture sample (raw, unlit RGB) — a naive nearest-texel
+// lookup here aliased badly, since the raster buffer (max 512px) is much
+// smaller than the source texture (2048px wide), i.e. always downsampling.
+// Blending the 4 nearest texels per pixel is what actually fixes that, not
+// a bigger buffer (which would just aliase at higher resolution).
+function sampleEarthTex(lon,lat){
+  const uf=((lon+180)/360)*earthTexW;
+  const vf=Math.max(0,Math.min(earthTexH-1,((90-lat)/180)*earthTexH));
+  const u0=Math.floor(uf), v0=Math.floor(vf);
+  const fu=uf-u0, fv=vf-v0;
+  const u0w=((u0%earthTexW)+earthTexW)%earthTexW;
+  const u1w=(u0w+1)%earthTexW;
+  const v1=Math.min(earthTexH-1,v0+1);
+  const i00=(v0*earthTexW+u0w)*4, i10=(v0*earthTexW+u1w)*4, i01=(v1*earthTexW+u0w)*4, i11=(v1*earthTexW+u1w)*4;
+  const d=earthTexData;
+  const rTop=d[i00]+(d[i10]-d[i00])*fu, rBot=d[i01]+(d[i11]-d[i01])*fu;
+  const gTop=d[i00+1]+(d[i10+1]-d[i00+1])*fu, gBot=d[i01+1]+(d[i11+1]-d[i01+1])*fu;
+  const bTop=d[i00+2]+(d[i10+2]-d[i00+2])*fu, bBot=d[i01+2]+(d[i11+2]-d[i01+2])*fu;
+  return [rTop+(rBot-rTop)*fv, gTop+(gBot-gTop)*fv, bTop+(bBot-bTop)*fv];
+}
+
 // cheap hash + smoothed value noise, used for satellite-style land mottling and cloud wisps
 function hash2(x,y){ const s=Math.sin(x*127.1+y*311.7)*43758.5453; return s-Math.floor(s); }
 function valueNoise(x,y){
@@ -1864,13 +1885,15 @@ function renderGlobeRaster(effRadius){
 
       let r,g,b;
       if(earthTexReady){
-        // Real NASA Blue Marble photo: lon -180..180 -> u 0..W, lat 90..-90 -> v 0..H
-        // (equirectangular, north pole at row 0 — matches this texture's orientation).
-        let u=Math.round(((lon+180)/360)*earthTexW);
-        const v=Math.max(0,Math.min(earthTexH-1,Math.round(((90-lat)/180)*earthTexH)));
-        u=((u%earthTexW)+earthTexW)%earthTexW;
-        const ti=(v*earthTexW+u)*4;
-        r=earthTexData[ti]*light; g=earthTexData[ti+1]*light; b=earthTexData[ti+2]*light;
+        // Real NASA Blue Marble photo, bilinear-filtered (see sampleEarthTex).
+        // Uses its own gentler light curve — `light` (0.38 floor) was tuned
+        // for the old bright procedural palette; applied to real photo data
+        // (genuinely dark navy ocean, shadowed terrain already baked into the
+        // source) it compounded into a near-black globe. This keeps some
+        // day/night shading as a depth cue without crushing the dark side.
+        const texLight=0.66+0.5*diffuse;
+        const raw=sampleEarthTex(lon,lat);
+        r=raw[0]*texLight; g=raw[1]*texLight; b=raw[2]*texLight;
         // sun glint on water — the texture has no clouds/specular baked in, so
         // this still adds a nice moving highlight over ocean pixels.
         if(!land && diffuse>0.82){ const glint=(diffuse-0.82)/0.18; r+=90*glint; g+=90*glint; b+=70*glint; }
