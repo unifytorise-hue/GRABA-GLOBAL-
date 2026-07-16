@@ -1796,6 +1796,26 @@ let gImg=null, bufSize=0;
 
 const LIGHT=(()=>{ const l={x:-0.5,y:0.55,z:0.7}; const m=Math.sqrt(l.x*l.x+l.y*l.y+l.z*l.z); return {x:l.x/m,y:l.y/m,z:l.z/m}; })();
 
+// Real NASA Blue Marble equirectangular photo, sampled per-pixel in
+// renderGlobeRaster() below (lon/lat -> u/v). Loaded once at startup into an
+// offscreen canvas so getImageData() only runs a single time, not per frame.
+// If it hasn't loaded yet (or fails — no connectivity, blocked, etc.) the
+// raster falls back to the original procedural land/ocean noise coloring, so
+// the globe never breaks, it just looks less photoreal until the image is in.
+const EARTH_TEX=new Image();
+let earthTexData=null, earthTexW=0, earthTexH=0, earthTexReady=false;
+EARTH_TEX.onload=()=>{
+  earthTexW=EARTH_TEX.naturalWidth; earthTexH=EARTH_TEX.naturalHeight;
+  const texCanvas=document.createElement('canvas');
+  texCanvas.width=earthTexW; texCanvas.height=earthTexH;
+  const texCtx=texCanvas.getContext('2d');
+  texCtx.drawImage(EARTH_TEX,0,0);
+  earthTexData=texCtx.getImageData(0,0,earthTexW,earthTexH).data;
+  earthTexReady=true;
+};
+EARTH_TEX.onerror=()=>{ console.warn('[globe] earth-texture.jpg failed to load — using procedural fallback rendering.'); };
+EARTH_TEX.src='assets/earth-texture.jpg';
+
 // cheap hash + smoothed value noise, used for satellite-style land mottling and cloud wisps
 function hash2(x,y){ const s=Math.sin(x*127.1+y*311.7)*43758.5453; return s-Math.floor(s); }
 function valueNoise(x,y){
@@ -1843,7 +1863,18 @@ function renderGlobeRaster(effRadius){
       const light=0.38+0.72*diffuse;
 
       let r,g,b;
-      if(land){
+      if(earthTexReady){
+        // Real NASA Blue Marble photo: lon -180..180 -> u 0..W, lat 90..-90 -> v 0..H
+        // (equirectangular, north pole at row 0 — matches this texture's orientation).
+        let u=Math.round(((lon+180)/360)*earthTexW);
+        const v=Math.max(0,Math.min(earthTexH-1,Math.round(((90-lat)/180)*earthTexH)));
+        u=((u%earthTexW)+earthTexW)%earthTexW;
+        const ti=(v*earthTexW+u)*4;
+        r=earthTexData[ti]*light; g=earthTexData[ti+1]*light; b=earthTexData[ti+2]*light;
+        // sun glint on water — the texture has no clouds/specular baked in, so
+        // this still adds a nice moving highlight over ocean pixels.
+        if(!land && diffuse>0.82){ const glint=(diffuse-0.82)/0.18; r+=90*glint; g+=90*glint; b+=70*glint; }
+      } else if(land){
         const n=valueNoise(lon*0.22,lat*0.22);
         // blend deep green -> tan/brown for a satellite-mottled look
         const gr=[46,84,42], br=[142,124,78];
