@@ -47,8 +47,8 @@
       radial-gradient(ellipse at center, rgba(87,31,132,0.10) 0%, rgba(5,5,10,0) 55%, rgba(0,0,0,0.92) 100%);}
   #globeUI{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-start;
     pointer-events:none;padding:calc(6px + var(--safe-area-top)) 0 30px;transition:opacity .28s ease;}
-  #topBar{display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:auto;padding:0 14px;width:100%;box-sizing:border-box;}
-  #topBar > .brandSlot{width:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;min-width:0;gap:0;margin-top:-2px;}
+  #topBar{display:flex;flex-direction:column;align-items:center;gap:14px;pointer-events:auto;padding:0 14px;width:100%;box-sizing:border-box;}
+  #topBar > .brandSlot{width:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;min-width:0;gap:0;margin-top:4px;}
   .brandTagline{font-size:8.5px;color:rgba(255,255,255,0.55);letter-spacing:1.2px;text-align:center;font-weight:400;margin-top:-8px;}
   #topBar > .rightSlot{display:flex;flex-direction:row;align-items:stretch;justify-content:center;gap:6px;min-width:0;flex-shrink:0;margin-top:2px;}
   #topBar > .rightSlot > .tripsBtn{padding:6px 10px;font-size:8px;letter-spacing:1.4px;gap:5px;height:28px;line-height:1;}
@@ -61,7 +61,7 @@
      tagline text are illegible. The one exception is the big topBar header
      mark, overridden below to the full lockup image. */
   .mark{width:min(32vw,142px);height:auto;aspect-ratio:1719/1417;flex-shrink:0;background:url('assets/graba-icon-mark.png') center/contain no-repeat;filter:drop-shadow(0 0 22px rgba(188,119,255,.55));}
-  #topBar .brandSlot .mark{background-image:url('assets/graba-logo.png');}
+  #topBar .brandSlot .mark{background-image:url('assets/graba-logo.png');width:min(52vw,220px);margin-bottom:2px;}
   #topBarActions{display:contents;}
 
 
@@ -447,6 +447,21 @@
   #packBeltScroll{position:relative;width:0;height:0;z-index:2;
     transform-style:preserve-3d;
     will-change:transform;}
+  /* Thin Saturn-style ring band, tilted flat like the belt itself, sitting
+     behind the cards (which carry their own much higher inline z-index —
+     see positionRing() — so they always render in front of, "riding on
+     top of," this ring, not the other way round). Two close, slim rings
+     with a soft glow rather than one thick neon line — matches the
+     reference image instead of the earlier heavy-handed version. */
+  #packBelt::before,#packBelt::after{content:"";position:absolute;left:50%;top:50%;
+    border-radius:50%;pointer-events:none;z-index:1;
+    transform:translate(-50%,-50%) rotateX(85deg);}
+  #packBelt::before{width:calc(var(--globe-d, 320px) * 0.891);height:calc(var(--globe-d, 320px) * 0.891);
+    border:1.5px solid rgba(190,150,255,.55);
+    box-shadow:0 0 14px 2px rgba(160,110,255,.35);}
+  #packBelt::after{width:calc(var(--globe-d, 320px) * 1.034);height:calc(var(--globe-d, 320px) * 1.034);
+    border:1px solid rgba(130,160,255,.35);
+    box-shadow:0 0 16px 3px rgba(110,140,255,.22);}
   .packCard{position:absolute;left:0;top:0;
     width:calc(var(--globe-d, 320px) * 0.269);height:calc(var(--globe-d, 320px) * 0.372);
     margin-left:calc(var(--globe-d, 320px) * -0.1345);margin-top:calc(var(--globe-d, 320px) * -0.186);
@@ -3935,7 +3950,11 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
   // Introduce the hint, then fade it to a calmer state after a few seconds
   setTimeout(()=>{ hint.className='hide'; }, 8000);
 
-  fab.addEventListener('click',()=>{ if(requireAuth('Sign in to chat with Gabriella')) openPanel(); });
+  // Browsing/chatting with Gabriella doesn't need an account — only actually
+  // completing a booking does (already gated separately, see requireAuth()
+  // call inside the booking flow). Opening the chat panel itself should
+  // never force a login screen.
+  fab.addEventListener('click',()=>{ openPanel(); });
   closeBtn.addEventListener('click',closePanel);
   panel.addEventListener('click',(e)=>{ if(e.target===panel) closePanel(); });
   threadsBtn.addEventListener('click',()=>threadsPane.classList.toggle('on'));
@@ -4419,6 +4438,8 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
     padding:13px;border-radius:12px;font-weight:800;font-size:13.5px;letter-spacing:.4px;cursor:pointer;
     box-shadow:0 10px 24px -8px rgba(87,31,132,.7);}
   #authSubmit:active{transform:scale(.98);}
+  #authForgotRow{margin-top:-8px;}
+  #authForgotLink{font-size:11.5px;color:#bc77ff;text-decoration:none;cursor:pointer;font-weight:600;}
   #authErr{color:#ff8f8f;font-size:11.5px;text-align:center;min-height:14px;margin-top:4px;}
   #authFoot{text-align:center;font-size:11px;color:rgba(255,255,255,.5);margin-top:14px;}
   #authFoot a{color:#bc77ff;text-decoration:none;cursor:pointer;font-weight:600;}
@@ -4447,13 +4468,16 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
         <label for="authName">Full name</label>
         <input id="authName" type="text" autocomplete="name" placeholder="Your name">
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px;">
+      <div id="authEmailField" style="display:flex;flex-direction:column;gap:6px;">
         <label for="authEmail">Email</label>
         <input id="authEmail" type="email" autocomplete="email" placeholder="you@email.com" required>
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px;">
-        <label for="authPassword">Password</label>
+      <div id="authPasswordField" style="display:flex;flex-direction:column;gap:6px;">
+        <label for="authPassword" id="authPasswordLabel">Password</label>
         <input id="authPassword" type="password" autocomplete="current-password" placeholder="••••••••" required minlength="6">
+      </div>
+      <div id="authForgotRow" style="text-align:right;">
+        <a id="authForgotLink" href="#" role="button">Forgot password?</a>
       </div>
       <div id="authErr" role="alert"></div>
       <button id="authSubmit" type="submit">Sign in</button>
@@ -4483,12 +4507,19 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
   // account view.
   const overlay=document.getElementById('authOverlay');
   const closeBtn=document.getElementById('authClose');
+  const tabsWrap=document.getElementById('authTabs');
+  const footWrap=document.getElementById('authFoot');
   const tabs=document.querySelectorAll('#authTabs .authTab');
   const form=document.getElementById('authForm');
   const nameField=document.getElementById('authNameField');
   const nameInput=document.getElementById('authName');
+  const emailField=document.getElementById('authEmailField');
   const emailInput=document.getElementById('authEmail');
+  const passField=document.getElementById('authPasswordField');
+  const passLabel=document.getElementById('authPasswordLabel');
   const passInput=document.getElementById('authPassword');
+  const forgotRow=document.getElementById('authForgotRow');
+  const forgotLink=document.getElementById('authForgotLink');
   const errEl=document.getElementById('authErr');
   const submitBtn=document.getElementById('authSubmit');
   const titleEl=document.getElementById('authTitle');
@@ -4502,25 +4533,68 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
   const authBtn=document.getElementById('authBtnGlobe');
   const authLabel=document.getElementById('authBtnLabel');
 
+  // 'signin' / 'signup' — the two tabbed modes.
+  // 'forgot' — email-only, sends a Supabase reset-password email.
+  // 'reset' — landed back from that email's link (see the PASSWORD_RECOVERY
+  //   auth event below); password-only, sets the new password.
   let mode='signin';
 
   function setMode(next){
     mode=next;
     tabs.forEach(t=>t.classList.toggle('on',t.dataset.tab===mode));
     if(mode==='signup'){
+      tabsWrap.style.display='flex';
       titleEl.textContent='Create your account';
       subEl.textContent='Save trips & preferences';
       nameField.style.display='flex';
+      emailField.style.display='flex';
+      passField.style.display='flex';
+      passLabel.textContent='Password';
+      forgotRow.style.display='none';
       submitBtn.textContent='Create account';
       passInput.autocomplete='new-password';
+      passInput.placeholder='••••••••';
+      footWrap.style.display='block';
       footText.textContent='Already have an account?';
       swapLink.textContent='Sign in';
-    }else{
+    }else if(mode==='forgot'){
+      tabsWrap.style.display='none';
+      titleEl.textContent='Reset your password';
+      subEl.textContent="We'll email you a link to reset it";
+      nameField.style.display='none';
+      emailField.style.display='flex';
+      passField.style.display='none';
+      forgotRow.style.display='none';
+      submitBtn.textContent='Send reset link';
+      footWrap.style.display='block';
+      footText.textContent='Remembered it?';
+      swapLink.textContent='Back to sign in';
+    }else if(mode==='reset'){
+      tabsWrap.style.display='none';
+      titleEl.textContent='Choose a new password';
+      subEl.textContent='Enter a new password for your account';
+      nameField.style.display='none';
+      emailField.style.display='none';
+      passField.style.display='flex';
+      passLabel.textContent='New password';
+      passInput.autocomplete='new-password';
+      passInput.placeholder='••••••••';
+      forgotRow.style.display='none';
+      submitBtn.textContent='Update password';
+      footWrap.style.display='none';
+    }else{ // signin
+      tabsWrap.style.display='flex';
       titleEl.textContent='Welcome back';
       subEl.textContent='Sign in to sync your trips';
       nameField.style.display='none';
+      emailField.style.display='flex';
+      passField.style.display='flex';
+      passLabel.textContent='Password';
+      forgotRow.style.display='block';
       submitBtn.textContent='Sign in';
       passInput.autocomplete='current-password';
+      passInput.placeholder='••••••••';
+      footWrap.style.display='block';
       footText.textContent='New to Graba?';
       swapLink.textContent='Create an account';
     }
@@ -4568,25 +4642,43 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
 
   tabs.forEach(t=>t.addEventListener('click',()=>setMode(t.dataset.tab)));
   swapLink.addEventListener('click',()=>setMode(mode==='signin'?'signup':'signin'));
+  forgotLink.addEventListener('click',(e)=>{ e.preventDefault(); setMode('forgot'); });
 
   form.addEventListener('submit', async (e)=>{
     e.preventDefault();
     errEl.textContent='';
-    const email=(emailInput.value||'').trim();
-    const password=passInput.value||'';
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){errEl.textContent='Enter a valid email.';return;}
-    if(password.length<6){errEl.textContent='Password must be at least 6 characters.';return;}
     submitBtn.disabled=true;
     try{
-      if(mode==='signup'){
-        const name=(nameInput.value||'').trim();
-        if(!name){errEl.textContent='Enter your name.';submitBtn.disabled=false;return;}
-        const {error}=await sb.auth.signUp({email,password,options:{data:{name}}});
+      if(mode==='forgot'){
+        const email=(emailInput.value||'').trim();
+        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){errEl.textContent='Enter a valid email.';submitBtn.disabled=false;return;}
+        // redirectTo: back to this same page — Supabase appends a recovery
+        // token to the URL, which fires the PASSWORD_RECOVERY event below.
+        const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});
         if(error) throw error;
-        errEl.textContent='Check your email to confirm your account, then sign in.';
+        errEl.textContent="If that email has an account, we've sent a reset link.";
+      }else if(mode==='reset'){
+        const password=passInput.value||'';
+        if(password.length<6){errEl.textContent='Password must be at least 6 characters.';submitBtn.disabled=false;return;}
+        const {error}=await sb.auth.updateUser({password});
+        if(error) throw error;
+        errEl.textContent='Password updated — you’re signed in.';
+        setTimeout(closeAuth,1200);
       }else{
-        const {error}=await sb.auth.signInWithPassword({email,password});
-        if(error) throw error;
+        const email=(emailInput.value||'').trim();
+        const password=passInput.value||'';
+        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){errEl.textContent='Enter a valid email.';submitBtn.disabled=false;return;}
+        if(password.length<6){errEl.textContent='Password must be at least 6 characters.';submitBtn.disabled=false;return;}
+        if(mode==='signup'){
+          const name=(nameInput.value||'').trim();
+          if(!name){errEl.textContent='Enter your name.';submitBtn.disabled=false;return;}
+          const {error}=await sb.auth.signUp({email,password,options:{data:{name}}});
+          if(error) throw error;
+          errEl.textContent='Check your email to confirm your account, then sign in.';
+        }else{
+          const {error}=await sb.auth.signInWithPassword({email,password});
+          if(error) throw error;
+        }
       }
     }catch(err){
       errEl.textContent=err.message||'Something went wrong.';
@@ -4605,10 +4697,29 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
   // (see requireAuth() near the top of the main script); this just keeps
   // currentUser, the header label and the account view in sync, and loads
   // (or clears) the real trips whenever the session changes.
+  //
+  // PASSWORD_RECOVERY fires when the user lands back here from the reset
+  // email's link (Supabase parses the recovery token out of the URL itself
+  // and briefly signs them in under a recovery session) — force the overlay
+  // open on the "choose a new password" screen instead of the usual
+  // sign-in-closes-the-overlay behavior, so they actually complete the reset
+  // rather than just silently ending up "signed in".
   sb.auth.onAuthStateChange((_event, session)=>{
     const wasSignedIn=!!currentUser;
     currentUser=session?.user || null;
     refreshHeader();
+    if(_event==='PASSWORD_RECOVERY'){
+      // Not openAuth()/renderAuthAccountView() — currentUser is truthy for a
+      // recovery session, which would otherwise render the signed-in account
+      // view (name/email/sign-out) instead of the new-password form.
+      form.style.display='flex';
+      document.getElementById('authTabs').style.display='none';
+      document.getElementById('authFoot').style.display='block';
+      accountRow.style.display='none';
+      setMode('reset');
+      document.getElementById('authOverlay').classList.add('on');
+      return;
+    }
     renderAuthAccountView();
     if(currentUser){
       if(!wasSignedIn) closeAuth();
