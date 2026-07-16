@@ -819,6 +819,10 @@
       <div class="sec" id="stepNights">
         <div class="lab">Stay · length of trip</div>
         <div class="row">
+          <div class="l">Check-in</div>
+          <input id="checkinInput" class="modalTextInput" type="date" style="width:auto;">
+        </div>
+        <div class="row">
           <div class="l">Nights at this hotel</div>
           <div class="stepper">
             <button id="nightsMinus">–</button>
@@ -826,6 +830,7 @@
             <button id="nightsPlus">+</button>
           </div>
         </div>
+        <div class="sub" id="repriceStatus" style="margin:2px 0 0;min-height:14px;"></div>
       </div>
 
       <div class="sec" id="stepFlight">
@@ -1196,7 +1201,11 @@ function adaptHotelSearchResult(h, dest, i){
     // Real-reservation identifier (LiteAPI prebook→book flow, see CLAUDE.md)
     // — null when booking-hotel-search couldn't find one (see its file
     // header CONFIDENCE note); mock hotels never have this field at all.
-    offerId: (typeof h.offerId==='string' && h.offerId) ? h.offerId : null
+    offerId: (typeof h.offerId==='string' && h.offerId) ? h.offerId : null,
+    // Raw, unprefixed LiteAPI hotel id — lets us ask booking-hotel-search to
+    // reprice just this one hotel for chosen dates (see repriceActiveHotel()
+    // below); null for mock hotels, which never reprice.
+    liteApiId: (typeof h.liteApiId==='string' && h.liteApiId) ? h.liteApiId : null
   };
 }
 async function fetchRealHotels(destKey, centerLat, centerLon){
@@ -2787,6 +2796,16 @@ beltScroll.addEventListener('scroll',()=>{
 ============================================================ */
 const modalOverlay=document.getElementById('modalOverlay');
 let activeHotel=null, nights=3, flights=[], selectedFlightIdx=0;
+// Real check-in date for the active booking, ISO YYYY-MM-DD — set fresh each
+// time openPackageModal() runs (no persisted "last search" to restore).
+// Check-out is always derived (checkinDate + nights), never a second
+// independently-editable field — see computeCheckoutDate().
+let checkinDate=null;
+function computeCheckoutDate(checkin, n){
+  const d=new Date(checkin+'T00:00:00Z');
+  d.setDate(d.getDate()+n);
+  return d.toISOString().slice(0,10);
+}
 let transferPrices={t1:0,t2:0,t3:0};
 
 /* ============================================================
@@ -2871,6 +2890,15 @@ function openPackageModal(hotel){
   activeHotel=hotel;
   notePreference(hotel.type, 3); // "shows interest" — customer weighting learns silently (BRS 2.1)
   nights=3;
+  // Default check-in is today+7, matching booking-hotel-search's own
+  // hardcoded default — nothing looks different until the user actually
+  // changes it. Reset fresh every time the modal opens; no persisted
+  // "last search" concept (see CLAUDE.md).
+  checkinDate=isoDateOffset(7);
+  document.getElementById('checkinInput').value=checkinDate;
+  document.getElementById('repriceStatus').textContent='';
+  document.getElementById('bookBtn').disabled=false;
+  repriceToken++; // invalidate any in-flight reprice call from a previously-opened hotel
   document.getElementById('mHeroWrap').innerHTML=photoTag(hotel,600,400);
   document.getElementById('mHotelName').textContent=hotel.name;
   document.getElementById('mHotelLoc').textContent=hotel.type+" · "+DESTINATIONS[currentDestKey].city+", "+DESTINATIONS[currentDestKey].country;
@@ -2946,7 +2974,58 @@ document.getElementById('nightsMinus').onclick=()=>{ if(nights>1){nights--; sync
 document.getElementById('nightsPlus').onclick=()=>{ nights++; sync(); };
 document.getElementById('travellerInput').addEventListener('input',e=>{ travellerName=e.target.value.trim(); updateTotal(); });
 document.getElementById('originInput').addEventListener('input',e=>{ originCity=e.target.value.trim(); });
-function sync(){ document.getElementById('nightsVal').textContent=nights; updateTotal(); }
+function sync(){ document.getElementById('nightsVal').textContent=nights; updateTotal(); repriceActiveHotel(); }
+document.getElementById('checkinInput').addEventListener('change', e=>{
+  if(e.target.value) checkinDate=e.target.value;
+  repriceActiveHotel();
+});
+
+// Real hotels (activeHotel.offerId/liteApiId set — see adaptHotelSearchResult())
+// re-fetch a date-specific price from booking-hotel-search whenever check-in
+// or nights changes, since LiteAPI's rates are genuinely date-dependent and
+// the previously-shown price/offerId belong to the OLD dates. Mock/fallback
+// hotels (genHotels()) have no liteApiId/offerId and keep doing exactly what
+// they already did: simple pricePerNight*nights, no network call.
+// `repriceToken` guards against a stale in-flight response landing after a
+// newer one (or after the modal was reopened for a different hotel).
+let repriceToken=0;
+async function repriceActiveHotel(){
+  if(!activeHotel || !activeHotel.offerId || !activeHotel.liteApiId) return;
+  const statusEl=document.getElementById('repriceStatus');
+  const bookBtn=document.getElementById('bookBtn');
+  const checkout=computeCheckoutDate(checkinDate, nights);
+  const myToken=++repriceToken;
+  const hotelForThisCall=activeHotel;
+  // Block booking until this reprice resolves — the currently-held offerId
+  // was priced for the PREVIOUS dates and must not be used to book the new
+  // ones (see CLAUDE.md / booking-hotel-search's offerId note).
+  bookBtn.disabled=true;
+  statusEl.textContent='Checking live price for these dates…';
+  statusEl.style.color='#999';
+  try{
+    const {data, error}=await sb.functions.invoke('booking-hotel-search', {
+      body: {hotelId: hotelForThisCall.liteApiId, checkin: checkinDate, checkout, count: 1}
+    });
+    if(myToken!==repriceToken || activeHotel!==hotelForThisCall) return; // stale — a newer call or a different hotel superseded this one
+    if(error) throw error;
+    const fresh = data && Array.isArray(data.hotels) ? data.hotels[0] : null;
+    if(!fresh || typeof fresh.pricePerNight!=='number' || !fresh.offerId){
+      throw new Error('booking-hotel-search returned no priced offer for these dates');
+    }
+    activeHotel.pricePerNight=fresh.pricePerNight;
+    activeHotel.offerId=fresh.offerId; // tied to these specific dates — the old offerId must not be reused for booking
+    if(typeof fresh.liteApiId==='string' && fresh.liteApiId) activeHotel.liteApiId=fresh.liteApiId;
+    statusEl.textContent='';
+    bookBtn.disabled=false;
+    updateTotal();
+  }catch(e){
+    console.warn('booking-hotel-search reprice failed for the chosen dates — keeping the last known-good price/offerId, blocking booking until a fresh price is confirmed:', e);
+    if(myToken!==repriceToken || activeHotel!==hotelForThisCall) return;
+    statusEl.textContent="Couldn't confirm pricing for these dates — try different dates.";
+    statusEl.style.color='#c0392b';
+    bookBtn.disabled=true;
+  }
+}
 
 function renderFlights(){
   const wrap=document.getElementById('flightOptions');
@@ -3100,7 +3179,7 @@ document.getElementById('bookBtn').onclick=async()=>{
       nights,
       prebookId,
       holder,
-      details: {hotelName:activeHotel.name, flight, hotelTotal, flightTotal, transferTotal, paymentLabel:'Credit / Debit Card', insurance:false, originCity}
+      details: {hotelName:activeHotel.name, flight, hotelTotal, flightTotal, transferTotal, paymentLabel:'Credit / Debit Card', insurance:false, originCity, checkin:checkinDate, checkout:computeCheckoutDate(checkinDate, nights)}
     },
     headers: {Authorization: `Bearer ${session.access_token}`}
   });
