@@ -56,7 +56,12 @@
     #topBar > .rightSlot > .tripsBtn{padding:7px 12px;font-size:8.5px;letter-spacing:1.8px;height:30px;}
   }
   .brand{display:flex;align-items:center;justify-content:center;pointer-events:auto;}
-  .mark{width:min(32vw,142px);height:auto;aspect-ratio:1719/1417;flex-shrink:0;background:url('assets/graba-logo.png') center/contain no-repeat;filter:drop-shadow(0 0 22px rgba(188,119,255,.55));}
+  /* Default .mark is the small icon-only crop (no wordmark/tagline) — every
+     reuse of this class is 20-44px, where the full lockup's wordmark and
+     tagline text are illegible. The one exception is the big topBar header
+     mark, overridden below to the full lockup image. */
+  .mark{width:min(32vw,142px);height:auto;aspect-ratio:1719/1417;flex-shrink:0;background:url('assets/graba-icon-mark.png') center/contain no-repeat;filter:drop-shadow(0 0 22px rgba(188,119,255,.55));}
+  #topBar .brandSlot .mark{background-image:url('assets/graba-logo.png');}
   #topBarActions{display:contents;}
 
 
@@ -4241,7 +4246,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
   @keyframes authIn{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
   #authClose{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,0.12);
     background:transparent;color:rgba(255,255,255,0.7);font-size:13px;cursor:pointer;}
-  #authCard .authMark{width:44px;height:44px;background:url('assets/graba-logo.png') center/contain no-repeat;
+  #authCard .authMark{width:44px;height:44px;background:url('assets/graba-icon-mark.png') center/contain no-repeat;
     margin:0 auto 10px;filter:drop-shadow(0 0 14px rgba(188,119,255,.55));}
   #authCard h2{font-family:'Playfair Display',serif;font-style:italic;font-weight:500;font-size:22px;
     text-align:center;margin:0 0 4px;}
