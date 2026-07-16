@@ -2584,7 +2584,13 @@ function queueDiscovery(){
   return discoveryChain;
 }
 
-const MARKER_ACTIVE_COUNT=16; // how many of the full pool show as markers/cards at once
+// Show every currently-known destination (all 102 curated + anything
+// already discovered from a prior visit) as a ring card at once, so the
+// ring is genuinely full all the way around the globe rather than a sparse
+// rotating subset. Each dismiss still swaps exactly one out for one fresh
+// one (see dismissGlobeMarker), so this count only grows over a session as
+// live discovery adds new places beyond the curated set — it never shrinks.
+const MARKER_ACTIVE_COUNT=Object.keys(DESTINATIONS).length;
 const globePhotoMarkersEl=document.getElementById('globePhotoMarkers');
 const packBeltScrollEl=document.getElementById('packBeltScroll');
 const globeMarkers=[]; // [{key, dest, el, ringEl}], kept in sync with the DOM
