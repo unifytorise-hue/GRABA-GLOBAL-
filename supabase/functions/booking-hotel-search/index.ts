@@ -28,6 +28,15 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
  * `supabase secrets set LITEAPI_KEY=...`; there's no MCP tool that can set
  * this, so it has to be done directly by whoever holds the key.
  *
+ * CORS: this is called directly from the browser (supabase-js
+ * `.functions.invoke()`), which always sends a preflight OPTIONS request
+ * first when the body is JSON and the target is a different origin — which
+ * it always is here (github.io calling supabase.co). Without explicit CORS
+ * headers and an OPTIONS handler, every single browser call fails at the
+ * preflight stage with a 405, before this function's own logic ever runs —
+ * this was a real, previously-undiagnosed bug that silently forced every
+ * hotel search onto the mock-data fallback regardless of LITEAPI_KEY.
+ *
  * --- offerId (real reservation, added for the LiteAPI prebook→book flow) ---
  * `offerId` is the identifier LiteAPI's own docs say to pass to
  * `POST /v3.0/rates/prebook` to hold a specific priced rate before booking
@@ -89,6 +98,12 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
  * given a one-element `hotelIds` array, and whether the returned price truly
  * reflects the requested date range, is unverified.
  */
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 const LITEAPI_HOTELS_URL = "https://api.liteapi.travel/v3.0/data/hotels";
 const LITEAPI_RATES_URL = "https://api.liteapi.travel/v3.0/hotels/rates";
@@ -239,10 +254,14 @@ async function priceHotels(
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: CORS_HEADERS });
+  }
+
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Use POST" }), {
       status: 405,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   }
 
@@ -262,7 +281,7 @@ Deno.serve(async (req: Request) => {
   } catch {
     return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
       status: 400,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   }
 
@@ -273,7 +292,7 @@ Deno.serve(async (req: Request) => {
   if (!hotelId && (typeof body.lat !== "number" || typeof body.lon !== "number")) {
     return new Response(JSON.stringify({ error: "lat and lon are required" }), {
       status: 400,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   }
 
@@ -281,7 +300,7 @@ Deno.serve(async (req: Request) => {
   if (!apiKey) {
     return new Response(JSON.stringify({ error: "LITEAPI_KEY is not configured as an edge function secret" }), {
       status: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   }
 
@@ -310,7 +329,7 @@ Deno.serve(async (req: Request) => {
     const { hotels, ratesRaw } = await priceHotels([{ id: hotelId }], checkIn, checkOut, apiKey);
     const responseBody: Record<string, unknown> = { source: "liteapi", hotels };
     if (body.debug) responseBody.raw = { rates: ratesRaw };
-    return new Response(JSON.stringify(responseBody), { headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify(responseBody), { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   }
 
   // ---- List-mode (unchanged behavior, aside from the checkin/checkout override above) ----
@@ -331,13 +350,13 @@ Deno.serve(async (req: Request) => {
     if (!listRes.ok) {
       return new Response(JSON.stringify({ error: `LiteAPI hotels error: ${listRes.status}`, detail: listRaw }), {
         status: 502,
-        headers: { "Content-Type": "application/json" },
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
       });
     }
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), {
       status: 502,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   }
 
@@ -345,7 +364,7 @@ Deno.serve(async (req: Request) => {
   if (properties.length === 0) {
     const responseBody: Record<string, unknown> = { source: "liteapi", hotels: [] };
     if (body.debug) responseBody.raw = { list: listRaw };
-    return new Response(JSON.stringify(responseBody), { headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify(responseBody), { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   }
 
   // Pricing is a second, separate call — hotels without a returned rate are
@@ -356,6 +375,6 @@ Deno.serve(async (req: Request) => {
   if (body.debug) responseBody.raw = { list: listRaw, rates: ratesRaw };
 
   return new Response(JSON.stringify(responseBody), {
-    headers: { "Content-Type": "application/json" },
+    headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
   });
 });

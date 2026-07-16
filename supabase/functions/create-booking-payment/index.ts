@@ -28,6 +28,11 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
  * confirmed; metadata.kind = "booking" lets the webhook tell this apart
  * from any other transaction kind it might see.
  *
+ * CORS: called directly from the browser — see booking-hotel-search's
+ * header for why this needs an explicit OPTIONS handler + CORS headers on
+ * every response (a real, previously-undiagnosed bug affecting every
+ * client-invoked function in this project, not specific to this one).
+ *
  * Requires edge function secrets:
  *   PAYSTACK_SECRET_KEY — from the Paystack dashboard
  *   SITE_URL — optional, defaults to the GitHub Pages URL
@@ -43,6 +48,12 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
  * holder's email always comes from this function's own verified `user.email`
  * (never trusted from the client) since Paystack already requires it.
  */
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -61,20 +72,24 @@ interface BookingPayload {
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: CORS_HEADERS });
+  }
+
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Use POST" }), { status: 405, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Use POST" }), { status: 405, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   }
 
   if (!PAYSTACK_SECRET_KEY) {
     return new Response(JSON.stringify({ error: "PAYSTACK_SECRET_KEY is not configured as an edge function secret" }), {
       status: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   }
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
-    return new Response(JSON.stringify({ error: "Missing Authorization header" }), { status: 401, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Missing Authorization header" }), { status: 401, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -82,17 +97,17 @@ Deno.serve(async (req: Request) => {
   });
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
-    return new Response(JSON.stringify({ error: "Invalid session" }), { status: 401, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Invalid session" }), { status: 401, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   }
   if (!user.email) {
-    return new Response(JSON.stringify({ error: "Account has no email on file — required by Paystack" }), { status: 400, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Account has no email on file — required by Paystack" }), { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   }
 
   let body: BookingPayload;
   try {
     body = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   }
 
   const total_amount = Number(body.total_amount);
@@ -110,13 +125,13 @@ Deno.serve(async (req: Request) => {
   const holderPhone = String(body.holder?.phone ?? "").trim() || null;
 
   if (!Number.isFinite(total_amount) || total_amount <= 0) {
-    return new Response(JSON.stringify({ error: "total_amount must be a positive number" }), { status: 400, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "total_amount must be a positive number" }), { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   }
   if (!destination_city || !destination_country) {
-    return new Response(JSON.stringify({ error: "destination_city and destination_country are required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "destination_city and destination_country are required" }), { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   }
   if (!Number.isFinite(nights) || nights <= 0) {
-    return new Response(JSON.stringify({ error: "nights must be a positive number" }), { status: 400, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "nights must be a positive number" }), { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   }
 
   try {
@@ -150,13 +165,13 @@ Deno.serve(async (req: Request) => {
 
     const data = await res.json();
     if (!res.ok || !data.status) {
-      return new Response(JSON.stringify({ error: "Paystack initialize failed", detail: data }), { status: 502, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Paystack initialize failed", detail: data }), { status: 502, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
     }
 
     return new Response(JSON.stringify({ url: data.data.authorization_url, reference: data.data.reference }), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), { status: 502, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: String(err) }), { status: 502, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   }
 });

@@ -30,6 +30,11 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
  * CLAUDE.md for why a payment-succeeded-but-no-reservation state is an
  * accepted, documented gap for now.
  *
+ * CORS: called directly from the browser — see booking-hotel-search's
+ * header for why this needs an explicit OPTIONS handler + CORS headers on
+ * every response (a real, previously-undiagnosed bug affecting every
+ * client-invoked function in this project, not specific to this one).
+ *
  * Requires a LITEAPI_KEY edge function secret — same one used by
  * booking-hotel-search (reused, not a new secret name). If missing, returns
  * a clean 500, exactly like booking-hotel-search does.
@@ -37,13 +42,23 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
  * verify_jwt is ON — only a signed-in Graba user can place a prebook hold.
  */
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 const LITEAPI_PREBOOK_URL = "https://api.liteapi.travel/v3.0/rates/prebook";
 
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: CORS_HEADERS });
+  }
+
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Use POST" }), {
       status: 405,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   }
 
@@ -51,7 +66,7 @@ Deno.serve(async (req: Request) => {
   if (!apiKey) {
     return new Response(JSON.stringify({ error: "LITEAPI_KEY is not configured as an edge function secret" }), {
       status: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   }
 
@@ -59,7 +74,7 @@ Deno.serve(async (req: Request) => {
   if (!authHeader) {
     return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
       status: 401,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   }
 
@@ -69,7 +84,7 @@ Deno.serve(async (req: Request) => {
   } catch {
     return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
       status: 400,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   }
 
@@ -77,7 +92,7 @@ Deno.serve(async (req: Request) => {
   if (!offerId) {
     return new Response(JSON.stringify({ error: "offerId is required" }), {
       status: 400,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   }
 
@@ -99,13 +114,13 @@ Deno.serve(async (req: Request) => {
       console.error("liteapi-prebook: LiteAPI prebook call failed", res.status, raw);
       return new Response(JSON.stringify({ error: `LiteAPI prebook error: ${res.status}`, detail: raw }), {
         status: 502,
-        headers: { "Content-Type": "application/json" },
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
       });
     }
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), {
       status: 502,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   }
 
@@ -125,6 +140,6 @@ Deno.serve(async (req: Request) => {
 
   return new Response(
     JSON.stringify({ prebookId, expiresAt, price, raw }),
-    { headers: { "Content-Type": "application/json" } },
+    { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
   );
 });

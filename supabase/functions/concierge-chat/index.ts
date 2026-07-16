@@ -32,10 +32,21 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
  * CLAUDE.md's "Wallet removal" section). Gabriella no longer claims it can
  * check a wallet balance, since `wallets` is now a dormant, unused table.
  *
+ * CORS: called directly from the browser — see booking-hotel-search's
+ * header for why this needs an explicit OPTIONS handler + CORS headers on
+ * every response (a real, previously-undiagnosed bug affecting every
+ * client-invoked function in this project, not specific to this one).
+ *
  * Requires edge function secrets:
  *   ANTHROPIC_API_KEY — from console.anthropic.com
  * SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are auto-injected by the platform.
  */
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -130,34 +141,38 @@ interface ChatMessage {
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: CORS_HEADERS });
+  }
+
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Use POST" }), { status: 405, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Use POST" }), { status: 405, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   }
   if (!ANTHROPIC_API_KEY) {
     return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY is not configured as an edge function secret" }), {
       status: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   }
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
-    return new Response(JSON.stringify({ error: "Missing Authorization header" }), { status: 401, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Missing Authorization header" }), { status: 401, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   }
   const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { headers: { Authorization: authHeader } } });
   const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
   if (userError || !user) {
-    return new Response(JSON.stringify({ error: "Invalid session" }), { status: 401, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Invalid session" }), { status: 401, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   }
 
   let body: { messages?: ChatMessage[] };
   try {
     body = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   }
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
-    return new Response(JSON.stringify({ error: "messages (non-empty array) is required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "messages (non-empty array) is required" }), { status: 400, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   }
 
   // deno-lint-ignore no-explicit-any
@@ -184,7 +199,7 @@ Deno.serve(async (req: Request) => {
 
       if (!res.ok) {
         const detail = await res.text();
-        return new Response(JSON.stringify({ error: `Claude API error: ${res.status}`, detail }), { status: 502, headers: { "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: `Claude API error: ${res.status}`, detail }), { status: 502, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
       }
 
       const data = await res.json();
@@ -193,7 +208,7 @@ Deno.serve(async (req: Request) => {
       if (data.stop_reason !== "tool_use") {
         // deno-lint-ignore no-explicit-any
         const textBlocks = (data.content ?? []).filter((b: any) => b.type === "text").map((b: any) => b.text);
-        return new Response(JSON.stringify({ reply: textBlocks.join("\n"), messages }), { headers: { "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ reply: textBlocks.join("\n"), messages }), { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
       }
 
       // deno-lint-ignore no-explicit-any
@@ -208,8 +223,8 @@ Deno.serve(async (req: Request) => {
       messages.push({ role: "user", content: toolResults });
     }
 
-    return new Response(JSON.stringify({ error: "Too many tool-call rounds without a final answer" }), { status: 500, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Too many tool-call rounds without a final answer" }), { status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), { status: 502, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: String(err) }), { status: 502, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   }
 });
