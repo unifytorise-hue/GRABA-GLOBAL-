@@ -1385,10 +1385,6 @@ function photoTag(h, w, hpx){
 // Live data hooks — call our server proxies (Amadeus / LiteAPI / Pexels).
 // Each falls back gracefully so the app still works if a key is bad.
 // ============================================================
-function isoDateOffset(days){
-  const d=new Date(); d.setDate(d.getDate()+days);
-  return d.toISOString().slice(0,10);
-}
 // Adapts the booking-hotel-search edge function's {id,name,type,pricePerNight,
 // rating,currency,lat,lon} shape into the full internal hotel shape the rest
 // of the app expects (x/y percentage-space for the search-radius simulation,
@@ -1511,70 +1507,6 @@ function nearestIATA(lat,lon){
     if(d<bestD){bestD=d;best=c;}
   }
   return best;
-}
-async function fetchRealFlights(destKey){
-  const dest=DESTINATIONS[destKey]; if(!dest) return null;
-  if(!dest.code && dest.lat!=null && dest.lon!=null){
-    dest.code=nearestIATA(dest.lat,dest.lon);
-  }
-  if(!dest.code) return null;
-  const origin='JNB'; // Johannesburg default origin (SA-focused app)
-  if(origin===dest.code) return null;
-  const qs=new URLSearchParams({origin, destination:dest.code, date:isoDateOffset(14), adults:'1'});
-  try{
-    const res=await fetch('/api/public/flights?'+qs);
-    if(!res.ok) return null;
-    const data=await res.json();
-    if(!data.flights || !data.flights.length) return null;
-    return data.flights.slice(0,4).map(f=>{
-      // SerpAPI returns "YYYY-MM-DD HH:MM" strings and a numeric total_duration in minutes.
-      const timePart = (f.depart||'').slice(11,16) || (f.depart||'').split(' ')[1] || '';
-      const durMin = f.durationMinutes || 0;
-      return {
-        airline:f.airline,
-        airlineLogo:f.airlineLogo,
-        time: timePart,
-        duration: durMin ? `${Math.floor(durMin/60)}h ${String(durMin%60).padStart(2,'0')}m` : '',
-        stops: f.stops===0?'Non-stop':`${f.stops} stop${f.stops>1?'s':''}`,
-        price: Math.round(f.price * 18), // rough USD→ZAR to match app's Rand display
-        flightNo: f.flightNo,
-        live: true
-      };
-    });
-  }catch(_){ return null; }
-}
-
-// Fetch and render the full LiteAPI photo gallery for a hotel. Only live
-// hotels (id prefixed 'live-lp...') have a real gallery — for generated
-// entries we hide the strip.
-async function loadHotelGallery(hotel){
-  const gal=document.getElementById('mGallery');
-  gal.style.display='none';
-  gal.innerHTML='';
-  if(!hotel || !hotel.id || !hotel.id.startsWith('live-')) return;
-  try{
-    const res=await fetch('/api/public/hotel-photos?id='+encodeURIComponent(hotel.id));
-    if(!res.ok) return;
-    const data=await res.json();
-    const photos=(data.photos||[]).slice(0,12);
-    if(photos.length<2) return;
-    photos.forEach((url,i)=>{
-      const d=document.createElement('div');
-      d.className='g'+(i===0?' sel':'');
-      d.innerHTML=`<img src="${url}" loading="lazy" alt="">`;
-      d.onclick=()=>{
-        document.getElementById('mHeroWrap').innerHTML=
-          `<img src="${url}" alt="${hotel.name}" style="width:100%;height:100%;object-fit:cover;">`;
-        gal.querySelectorAll('.g').forEach(el=>el.classList.remove('sel'));
-        d.classList.add('sel');
-      };
-      gal.appendChild(d);
-    });
-    gal.style.display='flex';
-    // Upgrade the hero to the first HD gallery photo.
-    document.getElementById('mHeroWrap').innerHTML=
-      `<img src="${photos[0]}" alt="${hotel.name}" style="width:100%;height:100%;object-fit:cover;">`;
-  }catch(_){}
 }
 
 
@@ -3613,7 +3545,6 @@ function openPackageModal(hotel){
   document.getElementById('mHeroWrap').innerHTML=photoTag(hotel,600,400);
   document.getElementById('mHotelName').textContent=hotel.name;
   document.getElementById('mHotelLoc').textContent=hotel.type+" · "+DESTINATIONS[currentDestKey].city+", "+DESTINATIONS[currentDestKey].country;
-  loadHotelGallery(hotel);
   document.getElementById('nightsVal').textContent=nights;
   renderRankPanel(hotel);
   document.getElementById('rankPanel').style.display='none';
@@ -3632,16 +3563,6 @@ function openPackageModal(hotel){
   flights=genFlights();
   selectedFlightIdx=0;
   renderFlights();
-  // Upgrade to live Amadeus results asynchronously; if the call succeeds the
-  // list is replaced in-place, otherwise the generated pool remains.
-  fetchRealFlights(currentDestKey).then(live=>{
-    if(live && live.length){
-      flights=live.concat(flights).slice(0,6);
-      selectedFlightIdx=0;
-      renderFlights();
-      if(typeof updateTotals==='function') updateTotals();
-    }
-  });
   lastTotalShown=null;
   updateTotal();
   modalOverlay.style.display='flex';
@@ -3931,16 +3852,19 @@ document.getElementById('tripsBackBtn').onclick=hideTripsView;
 // ---- Profile (BRS Value Stream K: view/update profile details) ----
 // Resolves free-text "flying from" input against the same search index the
 // destination box uses, so "johannesburg" etc. picks up a real IATA code
-// when available; falls back to storing the raw text rather than
-// discarding an unrecognized city. Shared by the profile form and the
-// one-time onboarding origin question.
+// when available. Curated DESTINATIONS entries already carry one; anything
+// else (a CITIES_EXTRA dot or a plain typed city with no match at all) has
+// no code of its own, so falls back to the nearest airport by coordinates —
+// only possible for a resolved place with real lat/lon, which a raw
+// unmatched string never has. Shared by the profile form and the one-time
+// onboarding origin question.
 function resolveOriginInput(raw){
   if(!raw) return {originCity:'', originCode:''};
   const place=findPlace(raw);
-  if(place){
-    return {originCity:place.full, originCode:(place.destKey && DESTINATIONS[place.destKey] && DESTINATIONS[place.destKey].code) || ''};
-  }
-  return {originCity:raw, originCode:''};
+  if(!place) return {originCity:raw, originCode:''};
+  const curatedCode=(place.destKey && DESTINATIONS[place.destKey] && DESTINATIONS[place.destKey].code) || '';
+  const code=curatedCode || (place.lat!=null && place.lon!=null ? nearestIATA(place.lat, place.lon) : '');
+  return {originCity:place.full, originCode:code||''};
 }
 function openProfile(){
   document.getElementById('profileName').value=profile.name;
