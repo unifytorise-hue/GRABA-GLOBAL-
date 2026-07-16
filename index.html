@@ -834,7 +834,7 @@
       </div>
 
       <div class="sec" id="stepFlight">
-        <div class="lab">Flight</div>
+        <div class="lab">Flight <span id="flightDatesLabel" style="text-transform:none;font-weight:600;color:#aaa;"></span></div>
         <div class="row" style="padding-top:0;padding-bottom:6px;">
           <div class="l">Departing from</div>
         </div>
@@ -2806,6 +2806,11 @@ function computeCheckoutDate(checkin, n){
   d.setDate(d.getDate()+n);
   return d.toISOString().slice(0,10);
 }
+function fmtDateShort(iso){
+  if(!iso) return '—';
+  const d=new Date(iso+'T00:00:00Z');
+  return d.toLocaleDateString('en-ZA',{day:'numeric',month:'short',timeZone:'UTC'});
+}
 let transferPrices={t1:0,t2:0,t3:0};
 
 /* ============================================================
@@ -3074,12 +3079,22 @@ function updateTotal(){
   document.getElementById('pbTransfer').textContent=fmtR(transferTotal);
   document.getElementById('ptAmt').textContent=fmtR(total);
 
+  // Real travel dates, threaded through everywhere the trip is summarized —
+  // checkinDate is the one thing the user actually picks; checkout is always
+  // derived (computeCheckoutDate()). Flight times themselves are still mock
+  // (genFlights(), unrelated to Sabre/real dates until that's wired), so this
+  // is honestly just "here's your travel window," not a claim that the listed
+  // flight options were priced for it.
+  const checkoutDate=checkinDate ? computeCheckoutDate(checkinDate, nights) : null;
+  const dateRange = checkinDate ? `${fmtDateShort(checkinDate)} → ${fmtDateShort(checkoutDate)}` : '';
+  document.getElementById('flightDatesLabel').textContent = dateRange;
+
   // Review section — one-glance summary of exactly what's being booked.
   const flight=flights[selectedFlightIdx];
   const dest=DESTINATIONS[currentDestKey];
   document.getElementById('rvDest').textContent = dest ? `${dest.city}, ${dest.country}` : '—';
-  document.getElementById('rvStay').textContent = activeHotel ? `${activeHotel.name} · ${nights} night${nights===1?'':'s'}` : '—';
-  document.getElementById('rvFlight').textContent = flight ? `${flight.airline} · ${flight.time}` : '—';
+  document.getElementById('rvStay').textContent = activeHotel ? `${activeHotel.name} · ${dateRange || (nights+' night'+(nights===1?'':'s'))}` : '—';
+  document.getElementById('rvFlight').textContent = flight ? `${flight.airline} · ${dateRange || flight.time}` : '—';
   document.getElementById('rvTransfers').textContent = 'Airport ↔ hotel, both ways';
   document.getElementById('rvGuest').textContent = travellerName ? travellerName : 'You (lead guest)';
 }
