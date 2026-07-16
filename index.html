@@ -341,12 +341,12 @@
     color:#888;font-size:12.5px;font-weight:700;cursor:pointer;margin-top:2px;}
   .modalStepsHint{padding:6px 20px 0;font-size:10px;color:#aaa;text-align:center;}
   .modalTextInput{width:100%;background:#faf6ff;border:1.5px solid #eee;border-radius:12px;padding:10px 12px;
-    font-size:13.5px;font-family:inherit;color:var(--ink);box-sizing:border-box;}
+    font-size:13.5px;font-family:inherit;color:var(--ink);box-sizing:border-box;accent-color:var(--purple);}
   /* ---- Sticky review/pay bar: itemized cost breakdown (always visible, updates live),
      running total, payment-method trust cue, then the single primary action. ---- */
   #totalBar{position:sticky;bottom:0;background:#fff;border-top:1px solid #eee;padding:12px 20px 20px;
     display:flex;flex-direction:column;gap:2px;}
-  #priceBreakdown{padding-bottom:6px;border-bottom:1px dashed #eee;margin-bottom:8px;}
+  #priceBreakdown{padding-bottom:6px;border-bottom:1px dashed #e5d3fb;margin-bottom:8px;}
   .pbRow{display:flex;align-items:baseline;justify-content:space-between;font-size:11.5px;padding:2px 0;}
   .pbRow .pbL{color:#999;font-weight:600;}
   .pbRow .pbL span{color:#bbb;font-weight:500;}
@@ -922,6 +922,36 @@
 
 </div>
 
+<!-- ================= TOAST / NOTIFICATIONS =================
+     In-app replacement for native alert popups — small, dismissible,
+     auto-hiding messages styled like the app's other floating dark chips
+     (#globeTip, #gabrielHint .pill, #countryChip: blurred dark card, glow
+     dot, pill/rounded shape) so it reads as an existing part of the design
+     language rather than a bolted-on toast library. Lives above every
+     overlay (modal, confirm, trips, auth, Gabriella) — see showToast() in
+     the main script for the JS side. -->
+<style>
+  #toastContainer{position:fixed;top:calc(var(--safe-area-top,0px) + 14px);left:0;right:0;
+    display:flex;flex-direction:column;align-items:center;gap:8px;z-index:200;
+    pointer-events:none;padding:0 16px;}
+  .toast{pointer-events:auto;display:flex;align-items:flex-start;gap:10px;width:100%;max-width:400px;
+    background:rgba(15,10,22,0.92);backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);
+    border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:12px 10px 12px 14px;
+    box-shadow:0 20px 50px -16px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.03) inset;
+    font-family:'Inter',sans-serif;cursor:pointer;
+    opacity:0;transform:translateY(-10px) scale(.97);
+    transition:opacity .24s cubic-bezier(.2,.9,.25,1),transform .28s cubic-bezier(.2,.9,.25,1);}
+  .toast.on{opacity:1;transform:translateY(0) scale(1);}
+  .toast .toastDot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:5px;
+    background:var(--glow);box-shadow:0 0 8px rgba(188,119,255,.8);}
+  .toast.error .toastDot{background:#ff8f8f;box-shadow:0 0 8px rgba(255,143,143,.8);}
+  .toast .toastMsg{flex:1;color:rgba(255,255,255,0.94);font-size:12.5px;font-weight:600;line-height:1.45;}
+  .toast .toastClose{flex-shrink:0;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.08);
+    border:none;color:rgba(255,255,255,0.6);font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .toast .toastClose:hover{background:rgba(255,255,255,0.16);color:#fff;}
+</style>
+<div id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="./lib/leaflet.markercluster/dist/leaflet.markercluster.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -959,6 +989,39 @@ function requireAuth(message){
   if(currentUser) return true;
   openAuth(message);
   return false;
+}
+
+// ---- Toast notifications: the in-app replacement for native alert popups
+// everywhere in this file (see #toastContainer / .toast CSS near
+// the top-level markup, right after #app closes). type:'info' (default,
+// purple/glow dot — matches #gabrielHint's pill dot) or 'error' (red dot,
+// same red as #authErr since both sit on a dark card). Auto-hides after
+// `duration`ms; tapping the toast or its close button dismisses it early.
+function showToast(message, type='info', duration=4200){
+  const container=document.getElementById('toastContainer');
+  if(!container || !message) return;
+  const el=document.createElement('div');
+  el.className='toast'+(type==='error'?' error':'');
+  el.setAttribute('role', type==='error' ? 'alert' : 'status');
+  el.innerHTML='<span class="toastDot"></span><span class="toastMsg"></span><button type="button" class="toastClose" aria-label="Dismiss">✕</button>';
+  el.querySelector('.toastMsg').textContent=message;
+  container.appendChild(el);
+  // Double rAF so the initial (opacity:0) state is painted before the
+  // transition-triggering class is added — same trick used by other
+  // enter animations in this file.
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('on')));
+  let dismissed=false;
+  const dismiss=()=>{
+    if(dismissed) return;
+    dismissed=true;
+    clearTimeout(timer);
+    el.classList.remove('on');
+    setTimeout(()=>el.remove(), 320);
+  };
+  const timer=setTimeout(dismiss, duration);
+  el.querySelector('.toastClose').onclick=(e)=>{ e.stopPropagation(); dismiss(); };
+  el.onclick=dismiss;
+  return dismiss;
 }
 
 /* ============================================================
@@ -3148,8 +3211,18 @@ document.getElementById('bookBtn').onclick=async()=>{
 
   const bookBtn=document.getElementById('bookBtn');
   bookBtn.disabled=true;
+  // Same delayed-spinner pattern as the search button (see goSearch()'s
+  // goBtn handling) — only swap the label if the Paystack redirect takes
+  // a moment, so a fast response never flickers a spinner into view.
+  const originalBookBtnHTML=bookBtn.innerHTML;
+  let bookBtnSpinnerShown=false;
+  const bookBtnSpinnerTimer=setTimeout(()=>{
+    bookBtn.innerHTML='<span style="display:inline-flex;align-items:center;justify-content:center;gap:8px;"><span class="btnSpinner" style="width:14px;height:14px;border-width:2px;"></span>Redirecting to checkout…</span>';
+    bookBtnSpinnerShown=true;
+  }, 300);
+  const restoreBookBtn=()=>{ clearTimeout(bookBtnSpinnerTimer); if(bookBtnSpinnerShown) bookBtn.innerHTML=originalBookBtnHTML; };
   const {data:{session}} = await sb.auth.getSession();
-  if(!session){ alert('Please sign in again.'); bookBtn.disabled=false; return; }
+  if(!session){ showToast('Please sign in again.', 'error'); restoreBookBtn(); bookBtn.disabled=false; return; }
 
   // Real hotel reservation, step 1 of 2 (LiteAPI prebook -> book — see
   // CLAUDE.md). Hold the priced rate before charging the card, so a
@@ -3198,7 +3271,7 @@ document.getElementById('bookBtn').onclick=async()=>{
     },
     headers: {Authorization: `Bearer ${session.access_token}`}
   });
-  if(error || !data?.url){ alert((error && error.message) || 'Could not start checkout.'); bookBtn.disabled=false; return; }
+  if(error || !data?.url){ showToast((error && error.message) || 'Could not start checkout.', 'error'); restoreBookBtn(); bookBtn.disabled=false; return; }
   window.location.href = data.url;
 };
 document.getElementById('addInsuranceBtn').onclick=async(e)=>{
@@ -3208,7 +3281,7 @@ document.getElementById('addInsuranceBtn').onclick=async(e)=>{
   if(!bookingId) return;
   btn.disabled=true;
   const {data:booking, error}=await sb.rpc('add_insurance', {p_booking_id:bookingId});
-  if(error){ alert(error.message); btn.disabled=false; return; }
+  if(error){ showToast(error.message, 'error'); btn.disabled=false; return; }
   document.getElementById('cTotal').textContent=fmtR(Number(booking.total_amount));
   btn.textContent='✓ Travel insurance added';
   btn.classList.add('added');
@@ -3226,7 +3299,7 @@ document.getElementById('whatsappConfirmBtn').onclick=()=>{
   
   // Option 1: WhatsApp Click to Chat (works immediately, no backend)
   if(!profile.phone){
-    alert('⚠️ Add your phone number in Profile to send WhatsApp confirmations.');
+    showToast('⚠️ Add your phone number in Profile to send WhatsApp confirmations.', 'error');
     return;
   }
   
@@ -3255,11 +3328,11 @@ document.getElementById('whatsappConfirmBtn').onclick=()=>{
   // })
   // .then(data => {
   //   console.log('✅ Booking confirmation sent to WhatsApp:', data.messageSid);
-  //   alert(`✅ Confirmation sent to ${profile.phone}`);
+  //   showToast(`Confirmation sent to ${profile.phone}`);
   // })
   // .catch(err => {
   //   console.error('WhatsApp send error:', err);
-  //   alert('Could not send via WhatsApp. Try again or check your phone number in Profile.');
+  //   showToast('Could not send via WhatsApp. Try again or check your phone number in Profile.', 'error');
   // });
 };
 document.getElementById('viewTripsBtn').onclick=()=>{
@@ -3300,7 +3373,7 @@ async function cancelTrip(ref){
   if(!trip || trip.cancelled) return;
   if(!confirm(`Cancel booking ${ref} to ${trip.city}? This can't be undone.`)) return;
   const {error}=await sb.from('bookings').update({details:{...(trip.details||{}), cancelled:true}}).eq('id', trip.id);
-  if(error){ alert(error.message || 'Could not cancel this booking.'); return; }
+  if(error){ showToast(error.message || 'Could not cancel this booking.', 'error'); return; }
   await loadTrips();
 }
 let viewBeforeTrips='globe';
