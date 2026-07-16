@@ -57,6 +57,10 @@
     border:2px solid rgba(255,255,255,.85);
     box-shadow:0 4px 14px rgba(0,0,0,.5), 0 0 0 1px rgba(188,119,255,.4), 0 0 16px 2px rgba(160,110,255,.35);
     pointer-events:auto;cursor:pointer;will-change:transform,opacity;}
+  .globePhotoMarkerDismiss{position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;
+    background:rgba(10,8,16,.92);border:1px solid rgba(255,255,255,.5);color:#fff;
+    display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;}
+  .globePhotoMarkerDismiss svg{width:9px;height:9px;}
   #globeUI{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-start;
     pointer-events:none;padding:calc(6px + var(--safe-area-top)) 0 30px;transition:opacity .28s ease;}
   #topBar{display:flex;flex-direction:column;align-items:center;gap:14px;pointer-events:auto;padding:0 14px;width:100%;box-sizing:border-box;}
@@ -1172,7 +1176,36 @@ const DESTINATIONS = {
   "new york": {city:"New York", country:"USA", lat:40.7128, lon:-74.0060, code:"JFK",
     areas:["Manhattan","Brooklyn","Queens","SoHo","Williamsburg"]},
   "mauritius": {city:"Port Louis, Mauritius", country:"Mauritius", lat:-20.1609, lon:57.5012, code:"MRU",
-    areas:["Grand Baie","Flic en Flac","Port Louis","Belle Mare","Tamarin"]}
+    areas:["Grand Baie","Flic en Flac","Port Louis","Belle Mare","Tamarin"]},
+  // Added for broader real-world geographic coverage (Asia/Oceania/Americas
+  // in particular were entirely missing before), so the globe photo markers
+  // (see GLOBE PHOTO MARKERS below) have real destinations facing the
+  // camera regardless of which side of the globe is currently rotated into
+  // view, not just the original Africa/Europe/Middle East cluster.
+  "tokyo": {city:"Tokyo", country:"Japan", lat:35.6762, lon:139.6503, code:"HND", areas:[]},
+  "bangkok": {city:"Bangkok", country:"Thailand", lat:13.7563, lon:100.5018, code:"BKK", areas:[]},
+  "singapore": {city:"Singapore", country:"Singapore", lat:1.3521, lon:103.8198, code:"SIN", areas:[]},
+  "bali": {city:"Bali", country:"Indonesia", lat:-8.6500, lon:115.2167, code:"DPS", areas:[]},
+  "seoul": {city:"Seoul", country:"South Korea", lat:37.5665, lon:126.9780, code:"ICN", areas:[]},
+  "hong kong": {city:"Hong Kong", country:"Hong Kong", lat:22.3193, lon:114.1694, code:"HKG", areas:[]},
+  "sydney": {city:"Sydney", country:"Australia", lat:-33.8688, lon:151.2093, code:"SYD", areas:[]},
+  "auckland": {city:"Auckland", country:"New Zealand", lat:-36.8485, lon:174.7633, code:"AKL", areas:[]},
+  "rio de janeiro": {city:"Rio de Janeiro", country:"Brazil", lat:-22.9068, lon:-43.1729, code:"GIG", areas:[]},
+  "buenos aires": {city:"Buenos Aires", country:"Argentina", lat:-34.6037, lon:-58.3816, code:"EZE", areas:[]},
+  "cancun": {city:"Cancún", country:"Mexico", lat:21.1619, lon:-86.8515, code:"CUN", areas:[]},
+  "los angeles": {city:"Los Angeles", country:"USA", lat:34.0522, lon:-118.2437, code:"LAX", areas:[]},
+  "toronto": {city:"Toronto", country:"Canada", lat:43.6532, lon:-79.3832, code:"YYZ", areas:[]},
+  "miami": {city:"Miami", country:"USA", lat:25.7617, lon:-80.1918, code:"MIA", areas:[]},
+  "nairobi": {city:"Nairobi", country:"Kenya", lat:-1.2921, lon:36.8219, code:"NBO", areas:[]},
+  "marrakech": {city:"Marrakech", country:"Morocco", lat:31.6295, lon:-7.9811, code:"RAK", areas:[]},
+  "victoria falls": {city:"Victoria Falls", country:"Zimbabwe", lat:-17.9243, lon:25.8572, code:"VFA", areas:[]},
+  "istanbul": {city:"Istanbul", country:"Turkey", lat:41.0082, lon:28.9784, code:"IST", areas:[]},
+  "doha": {city:"Doha", country:"Qatar", lat:25.2854, lon:51.5310, code:"DOH", areas:[]},
+  "rome": {city:"Rome", country:"Italy", lat:41.9028, lon:12.4964, code:"FCO", areas:[]},
+  "santorini": {city:"Santorini", country:"Greece", lat:36.3932, lon:25.4615, code:"JTR", areas:[]},
+  "barcelona": {city:"Barcelona", country:"Spain", lat:41.3874, lon:2.1686, code:"BCN", areas:[]},
+  "amsterdam": {city:"Amsterdam", country:"Netherlands", lat:52.3676, lon:4.9041, code:"AMS", areas:[]},
+  "reykjavik": {city:"Reykjavík", country:"Iceland", lat:64.1466, lon:-21.9426, code:"KEF", areas:[]}
 };
 
 const AIRLINES = ["Rockit Air","SA Skyways","Meridian Airways","Coastal Jet","Vantage Air"];
@@ -2438,27 +2471,88 @@ function goSearch(){
    living in a disconnected ring or strip element. Replaces both the
    #packBelt 3D ring and the #destStrip flat strip (both hidden via CSS,
    not deleted, in case either is wanted back in some form later).
+
+   Shows a rotating curated subset (MARKER_ACTIVE_COUNT of them) drawn
+   from the full DESTINATIONS pool, not all of them at once. Dismissing a
+   marker (the small × badge, separate from tapping the photo itself,
+   which navigates there) removes it permanently — persisted to
+   localStorage, so it never comes back even in a future visit — and
+   immediately pulls in a fresh destination from the pool to replace it.
+   Dismissing only affects the globe marker, not DESTINATIONS itself, so
+   a dismissed city can still be found by typing it into search.
 ============================================================ */
+const DISMISSED_DEST_KEY='graba_dismissed_destinations_v1';
+function loadDismissedDestinations(){
+  try{
+    const raw=localStorage.getItem(DISMISSED_DEST_KEY);
+    const arr=raw?JSON.parse(raw):[];
+    return new Set(Array.isArray(arr)?arr:[]);
+  }catch{ return new Set(); }
+}
+function saveDismissedDestinations(set){
+  try{ localStorage.setItem(DISMISSED_DEST_KEY, JSON.stringify([...set])); }catch{}
+}
+const dismissedDestinations=loadDismissedDestinations();
+
+const MARKER_ACTIVE_COUNT=16; // how many of the full pool show as markers at once
 const globePhotoMarkersEl=document.getElementById('globePhotoMarkers');
-const globeMarkers=globePhotoMarkersEl ? Object.keys(DESTINATIONS).map(key=>{
-  const d=DESTINATIONS[key];
+const globeMarkers=[]; // [{key, dest, el}], kept in sync with the DOM
+
+function availableDestKeys(){
+  const activeKeys=new Set(globeMarkers.map(m=>m.key));
+  return Object.keys(DESTINATIONS).filter(k=>!dismissedDestinations.has(k) && !activeKeys.has(k));
+}
+
+function buildMarkerPhotoUrl(key){
   const scene=SCENES[seedNum(key)%SCENES.length];
   const pool=SCENE_PHOTOS[scene]||SCENE_PHOTOS.beach;
   const photoId=pool[seedNum(key+'|globemark')%pool.length];
-  const photoUrl=`https://images.unsplash.com/photo-${photoId}?auto=format&fit=crop&w=140&h=140&q=70`;
+  return `https://images.unsplash.com/photo-${photoId}?auto=format&fit=crop&w=140&h=140&q=70`;
+}
+
+function addGlobeMarker(key){
+  const d=DESTINATIONS[key]; if(!d || !globePhotoMarkersEl) return;
   const el=document.createElement('div');
   el.className='globePhotoMarker';
-  el.style.backgroundImage=`url('${photoUrl}')`;
+  el.style.backgroundImage=`url('${buildMarkerPhotoUrl(key)}')`;
   el.dataset.key=key;
   el.title=d.city;
+  // City names are all static, developer-authored DESTINATIONS content,
+  // never user input — safe to interpolate directly, no escaping needed.
+  el.innerHTML=`<button class="globePhotoMarkerDismiss" type="button" aria-label="Not interested in ${d.city}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>`;
   globePhotoMarkersEl.appendChild(el);
-  return {dest:d, el};
-}) : [];
+  globeMarkers.push({key, dest:d, el});
+}
+
+function dismissGlobeMarker(key){
+  const idx=globeMarkers.findIndex(m=>m.key===key);
+  if(idx===-1) return;
+  globeMarkers[idx].el.remove();
+  globeMarkers.splice(idx,1);
+  dismissedDestinations.add(key);
+  saveDismissedDestinations(dismissedDestinations);
+  // Refill from whatever's left in the pool so the marker count stays
+  // constant — if the whole pool is exhausted this just quietly shows one
+  // fewer marker rather than erroring.
+  const next=availableDestKeys()[0];
+  if(next) addGlobeMarker(next);
+}
+
+function seedGlobeMarkers(){
+  const available=availableDestKeys();
+  available.slice(0, MARKER_ACTIVE_COUNT).forEach(addGlobeMarker);
+}
+seedGlobeMarkers();
+
 if(globePhotoMarkersEl){
   globePhotoMarkersEl.addEventListener('click',(e)=>{
+    const dismissBtn=e.target.closest('.globePhotoMarkerDismiss');
     const el=e.target.closest('.globePhotoMarker');
     if(!el) return;
     const key=el.dataset.key;
+    if(dismissBtn){ dismissGlobeMarker(key); return; }
     const d=DESTINATIONS[key];
     if(!d) return;
     currentDestKey=key;
