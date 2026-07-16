@@ -1229,7 +1229,7 @@ function adaptHotelSearchResult(h, dest, i){
     rating: (typeof h.rating==='number' && Number.isFinite(h.rating)) ? h.rating : (rand(28,50)/10),
     supplierPriority: rand(1,5),
     profitPct: rand(3,22)/100,
-    photo: null,
+    photo: (typeof h.photo==='string' && h.photo) ? h.photo : null,
     address: '',
     live: true
   };
