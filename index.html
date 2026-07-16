@@ -45,6 +45,18 @@
     background:
       radial-gradient(ellipse at 50% 42%, rgba(120,160,255,0.10) 0%, rgba(15,11,21,0) 38%),
       radial-gradient(ellipse at center, rgba(87,31,132,0.10) 0%, rgba(5,5,10,0) 55%, rgba(0,0,0,0.92) 100%);}
+  /* Real destination photos pinned directly to the globe's surface at each
+     DESTINATIONS entry's actual lat/lon (see updateGlobePhotoMarkers()) —
+     they move with the globe's own slow auto-rotation rather than living in
+     a separate ring/strip. Positioned via inline transform per-frame, not
+     CSS layout, so left/top/width/height here are just the marker's own
+     intrinsic box. */
+  #globePhotoMarkers{position:absolute;inset:0;z-index:4;pointer-events:none;}
+  .globePhotoMarker{position:absolute;left:0;top:0;width:46px;height:46px;border-radius:50%;
+    background-size:cover;background-position:center;box-sizing:border-box;
+    border:2px solid rgba(255,255,255,.85);
+    box-shadow:0 4px 14px rgba(0,0,0,.5), 0 0 0 1px rgba(188,119,255,.4), 0 0 16px 2px rgba(160,110,255,.35);
+    pointer-events:auto;cursor:pointer;will-change:transform,opacity;}
   #globeUI{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-start;
     pointer-events:none;padding:calc(6px + var(--safe-area-top)) 0 30px;transition:opacity .28s ease;}
   #topBar{display:flex;flex-direction:column;align-items:center;gap:14px;pointer-events:auto;padding:0 14px;width:100%;box-sizing:border-box;}
@@ -73,8 +85,11 @@
   /* Flat horizontal destination photo strip (Lovable-style) — real curated
      cities from DESTINATIONS, real Unsplash photos via the same SCENE_PHOTOS
      pool used elsewhere, tap to jump straight into that destination's map
-     view (same as picking a search suggestion). */
-  #destStrip{pointer-events:auto;display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x proximity;
+     view (same as picking a search suggestion).
+     Hidden — per product owner feedback the photos needed to be attached
+     to the globe itself (#globePhotoMarkers), not a separate flat strip
+     underneath it. Left in place rather than deleted. */
+  #destStrip{display:none;pointer-events:auto;gap:8px;overflow-x:auto;scroll-snap-type:x proximity;
     -webkit-overflow-scrolling:touch;padding:2px 2px 4px;}
   #destStrip::-webkit-scrollbar{display:none;}
   .destCard{position:relative;flex:0 0 auto;width:84px;height:112px;border-radius:12px;overflow:hidden;
@@ -456,7 +471,12 @@
      Ring is centered on the globe (~50%, 42% of viewport).
      Cards are positioned in 3D with rotateY(theta) * translateZ(radius),
      then the whole ring is tilted (rotateX) so it reads as an equatorial band. */
-  #packBelt{pointer-events:none;position:absolute;left:50%;top:50%;
+  /* Hidden — replaced by real photos attached directly to the globe's
+     surface (see #globePhotoMarkers below), which move with the globe's
+     own rotation instead of living in a disconnected ring/strip element.
+     Left in place rather than deleted so the underlying data-loading code
+     isn't lost if this is wanted back in some other form later. */
+  #packBelt{display:none;pointer-events:none;position:absolute;left:50%;top:50%;
     width:0;height:0;z-index:5;
     transform:translate(-50%,-50%);
     perspective:1200px;perspective-origin:50% 50%;}
@@ -553,7 +573,7 @@
   .priceCluster .clusterRange{font-size:12px;font-weight:800;}
   .priceCluster .clusterCount{font-size:9px;font-weight:600;opacity:.85;letter-spacing:.2px;}
 
-  /* ========================= GABRIEL — AI TRAVEL ASSISTANT ========================= */
+  /* ========================= GABRIELLA — AI TRAVEL ASSISTANT ========================= */
   #gabrielFab{position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);z-index:80;
     width:54px;height:54px;border-radius:50%;border:none;background:transparent;cursor:pointer;
     display:flex;align-items:center;justify-content:center;pointer-events:auto;
@@ -595,7 +615,7 @@
   #gabrielHint{animation:gHintFloat 3.2s ease-in-out infinite;}
   @keyframes gDotPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(1.35)}}
   @keyframes gHintFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
-  /* Destination category chips (in Gabriel's empty state) */
+  /* Destination category chips (in Gabriella's empty state) */
   .gCatRow{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 12px;margin:0 -8px 14px;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
   .gCatRow::-webkit-scrollbar{display:none;}
   .gCat{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);
@@ -604,7 +624,8 @@
     transition:background .15s,border-color .15s,transform .12s;white-space:nowrap;}
   .gCat:hover{background:rgba(139,109,255,0.14);border-color:rgba(139,109,255,0.4);}
   .gCat:active{transform:scale(.96);}
-  .gCat .gCatIco{font-size:14px;line-height:1;}
+  .gCat .gCatIco{display:inline-flex;line-height:1;}
+  .gCat .gCatIco svg{width:15px;height:15px;flex-shrink:0;}
   .gCatLbl{font-family:'Outfit',sans-serif;font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
     color:rgba(255,255,255,.5);text-align:left;margin:0 auto 6px;max-width:300px;}
   #gabrielPanel{position:fixed;inset:0;z-index:100;background:rgba(5,5,10,0.55);backdrop-filter:blur(6px);
@@ -618,9 +639,8 @@
   #gabrielPanel.on #gabrielSheet{transform:translateX(0);opacity:1;}
   .gHead{padding:14px 16px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,0.06);}
   .gHead .avatar{width:38px;height:38px;border-radius:50%;
-    background:radial-gradient(circle at 32% 28%,#8b6dff 0%,#571f84 55%,#2a0f4a 100%);
-    display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;
-    font-style:italic;font-weight:600;color:#fff;font-size:18px;
+    background:radial-gradient(circle at 32% 28%,#8b6dff 0%,#571f84 55%,#2a0f4a 100%)
+      url('assets/graba-icon-mark.png') center/70% no-repeat;
     box-shadow:0 0 0 1px rgba(255,255,255,0.08) inset;flex-shrink:0;}
   .gHead .who{flex:1;min-width:0;}
   .gHead .who .n{font-family:'Playfair Display',serif;font-style:italic;font-size:19px;line-height:1.1;}
@@ -651,8 +671,8 @@
     font-size:14px;cursor:pointer;padding:4px 6px;opacity:0;transition:opacity .15s,color .15s;}
   .gThRow:hover .gThDel{opacity:1;}
   .gThRow .gThDel:hover{color:#ff6b6b;}
-  #gMessages{flex:1;overflow-y:auto;padding:14px 14px 4px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth;}
-  .gEmpty{margin:auto;text-align:center;padding:24px;color:rgba(255,255,255,0.55);}
+  #gMessages{flex:1;min-width:0;overflow-y:auto;overflow-x:hidden;padding:14px 14px 4px;display:flex;flex-direction:column;align-items:stretch;gap:14px;scroll-behavior:smooth;}
+  .gEmpty{width:100%;max-width:100%;box-sizing:border-box;margin:auto;text-align:center;padding:24px;color:rgba(255,255,255,0.55);}
   .gEmpty .gEmojiRow{font-family:'Playfair Display',serif;font-style:italic;font-size:26px;color:#fff;margin-bottom:10px;}
   .gEmpty p{font-size:13px;line-height:1.55;max-width:280px;margin:0 auto 14px;}
   .gEmpty p.gCta{font-family:'Outfit',sans-serif;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
@@ -705,6 +725,7 @@
   <canvas id="globeCanvas"></canvas>
   <div id="globeVignette"></div>
   <div id="globeTip" aria-hidden="true"></div>
+  <div id="globePhotoMarkers" aria-label="Popular destinations"></div>
   <div id="globeUI">
      <div id="topBar">
        <div class="brand brandSlot">
@@ -996,7 +1017,7 @@
    SUPABASE — real backend. Auth, wallet, trips and bookings all
    live in this project; nothing in this file talks to localStorage
    for anything account-related (see AUTH GATE below for the one
-   exception that's deliberately local: Gabriel's thread list, which
+   exception that's deliberately local: Gabriella's thread list, which
    is just UI bookkeeping, not account data).
 ============================================================ */
 const SUPABASE_URL='https://mpkklamqfjwfuciuuxae.supabase.co';
@@ -1007,7 +1028,7 @@ let currentUser=null;
 // Auth is on-demand, not a startup gate: browsing/search/hotel details work
 // for anyone, signed in or not (the globe view must never force a sign-in).
 // requireAuth() is the single gate used by anything that actually needs an
-// account — wallet, trips, Gabriel, topping up, and booking itself. Call it
+// account — wallet, trips, Gabriella, topping up, and booking itself. Call it
 // right before the action; if it returns false the auth card is shown and
 // the caller should stop, letting the user retry the same action once
 // signed in. openAuth/closeAuth just toggle the overlay; the real sign
@@ -1028,7 +1049,7 @@ function requireAuth(message){
 }
 
 /* ============================================================
-   PERSISTENT STATE — localStorage for profile & Gabriel thread UI
+   PERSISTENT STATE — localStorage for profile & Gabriella thread UI
    bookkeeping only. Wallet and trips are real Supabase data — see
    loadWalletAndTrips() further down.
 ============================================================ */
@@ -2118,6 +2139,7 @@ function animate(){
   }
 
   drawGlobe();
+  if(typeof updateGlobePhotoMarkers==='function') updateGlobePhotoMarkers();
 }
 animate();
 
@@ -2320,6 +2342,60 @@ function goSearch(){
     flyToLatLon(d.lat, d.lon, 'search');
   });
 })();
+
+/* ============================================================
+   GLOBE PHOTO MARKERS — real destination photos pinned to the globe's
+   actual surface (project()'d from each DESTINATIONS entry's real
+   lat/lon every frame), so they move with the globe's own slow
+   auto-rotation (angleY += 0.0016/frame — see animate()) instead of
+   living in a disconnected ring or strip element. Replaces both the
+   #packBelt 3D ring and the #destStrip flat strip (both hidden via CSS,
+   not deleted, in case either is wanted back in some form later).
+============================================================ */
+const globePhotoMarkersEl=document.getElementById('globePhotoMarkers');
+const globeMarkers=globePhotoMarkersEl ? Object.keys(DESTINATIONS).map(key=>{
+  const d=DESTINATIONS[key];
+  const scene=SCENES[seedNum(key)%SCENES.length];
+  const pool=SCENE_PHOTOS[scene]||SCENE_PHOTOS.beach;
+  const photoId=pool[seedNum(key+'|globemark')%pool.length];
+  const photoUrl=`https://images.unsplash.com/photo-${photoId}?auto=format&fit=crop&w=140&h=140&q=70`;
+  const el=document.createElement('div');
+  el.className='globePhotoMarker';
+  el.style.backgroundImage=`url('${photoUrl}')`;
+  el.dataset.key=key;
+  el.title=d.city;
+  globePhotoMarkersEl.appendChild(el);
+  return {dest:d, el};
+}) : [];
+if(globePhotoMarkersEl){
+  globePhotoMarkersEl.addEventListener('click',(e)=>{
+    const el=e.target.closest('.globePhotoMarker');
+    if(!el) return;
+    const key=el.dataset.key;
+    const d=DESTINATIONS[key];
+    if(!d) return;
+    currentDestKey=key;
+    addToSearchHistory(key);
+    flyToLatLon(d.lat, d.lon, 'search');
+  });
+}
+// Called once per animation frame from animate(), right after drawGlobe()
+// has refreshed lastCx/lastCy/lastR for the current frame's globe center
+// and radius — reuses the exact same project() math as the globe's own
+// country labels and the selected-destination pulse marker.
+function updateGlobePhotoMarkers(){
+  for(const m of globeMarkers){
+    const p=project(m.dest.lon, m.dest.lat, angleY, angleX);
+    if(p.z<-0.15){ m.el.style.display='none'; continue; }
+    const sx=lastCx+p.x*lastR, sy=lastCy-p.y*lastR;
+    const depth=p.z*0.5+0.5; // 0..1, 1 = directly facing the camera
+    const scale=0.55+0.55*depth;
+    m.el.style.display='block';
+    m.el.style.transform=`translate(${sx}px, ${sy}px) translate(-50%,-50%) scale(${scale})`;
+    m.el.style.opacity=String(Math.max(0.15, depth));
+    m.el.style.zIndex=String(Math.round(1000+p.z*500));
+  }
+}
 
 /* ============================================================
    MAP VIEW (destination) + VAN DER BELT CAROUSEL
@@ -3492,7 +3568,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
 
 
 /* ============================================================
-   GABRIEL — GRABA travel AI assistant
+   GABRIELLA — GRABA travel AI assistant
    Multiple threads, persisted to localStorage in this browser.
 ============================================================ */
 (function initGabriel(){
@@ -3518,23 +3594,23 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
   // ---------- Build DOM ----------
   const fab=document.createElement('button');
   fab.id='gabrielFab';
-  fab.setAttribute('aria-label','Ask Gabriel, AI travel assistant');
+  fab.setAttribute('aria-label','Ask Gabriella, AI travel assistant');
   fab.innerHTML=`
     <span class="gGlow"></span>
     <span class="gRing">
       <svg viewBox="0 0 100 100" aria-hidden="true">
         <defs><path id="gTextPath" d="M 50, 50 m -42, 0 a 42,42 0 1,1 84,0 a 42,42 0 1,1 -84,0"/></defs>
-        <text><textPath href="#gTextPath" startOffset="0">YOUR AI TRAVEL AGENT - GABRIEL · YOUR AI TRAVEL AGENT - GABRIEL ·</textPath></text>
+        <text><textPath href="#gTextPath" startOffset="0">YOUR AI TRAVEL AGENT - GABRIELLA · YOUR AI TRAVEL AGENT - GABRIELLA ·</textPath></text>
       </svg>
     </span>
     <span class="gOrbit"></span>
-    <span class="gCore"><span class="gInner"></span><img class="gMark" src="assets/graba-icon-mark.png" alt="Gabriel"></span>`;
+    <span class="gCore"><span class="gInner"></span><img class="gMark" src="assets/graba-icon-mark.png" alt="Gabriella"></span>`;
   document.body.appendChild(fab);
 
   const hint=document.createElement('div');
   hint.id='gabrielHint';
   hint.className='hide';
-  hint.innerHTML='<div class="pill"><span class="dot"></span><span class="txt">SPIN • TAP • TELL GABRIEL</span></div><div class="tail"></div>';
+  hint.innerHTML='<div class="pill"><span class="dot"></span><span class="txt">SPIN • TAP • TELL GABRIELLA</span></div><div class="tail"></div>';
   document.body.appendChild(hint);
 
   const panel=document.createElement('div');
@@ -3550,13 +3626,13 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
       </div>
       <div class="gHead">
         <button id="gThreadsBtn" aria-label="Threads">☰</button>
-        <div class="avatar">G</div>
-        <div class="who"><div class="n">Gabriel</div><div class="r">Your AI Travel Agent</div></div>
+        <div class="avatar" role="img" aria-label="Gabriella"></div>
+        <div class="who"><div class="n">Gabriella</div><div class="r">Your AI Travel Agent</div></div>
         <button id="gClose" aria-label="Close">✕</button>
       </div>
       <div id="gMessages"></div>
       <form id="gComposer">
-        <textarea id="gInput" rows="1" placeholder="Ask Gabriel anything about your trip…" autocomplete="off"></textarea>
+        <textarea id="gInput" rows="1" placeholder="Ask Gabriella anything about your trip…" autocomplete="off"></textarea>
         <button id="gSend" type="submit" aria-label="Send">→</button>
       </form>
     </div>`;
@@ -3581,15 +3657,18 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
   ];
 
   // Quick destination categories — tap to start a fresh thread with a prefilled prompt
+  // Icons are inline SVGs (not emoji — inconsistent rendering across
+  // devices/OSes), same stroke style as the rest of the app's iconography.
+  const ICO_STROKE='fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
   const CATEGORIES=[
-    {ico:'🏖️',label:'Beach',   prompt:'Suggest 3 beach destinations I could book right now — mix short-haul and dreamy, with a rough vibe for each.'},
-    {ico:'🏙️',label:'City break',prompt:'Plan a 3-day city break for me. Suggest 3 cities that suit a long weekend and tell me why.'},
-    {ico:'🥾',label:'Hiking',   prompt:'Where should I go for a hiking trip in the next few months? Give me 3 options across difficulty levels.'},
-    {ico:'🍜',label:'Food',     prompt:'Take me on a food trip. Suggest 3 destinations known for incredible food scenes and what to eat there.'},
-    {ico:'🏔️',label:'Adventure',prompt:'Suggest 3 adventure trips — think rafting, diving, safaris or road trips — with a hook for each.'},
-    {ico:'🌙',label:'Nightlife',prompt:'Where should I go for great nightlife? Suggest 3 cities with different vibes and neighbourhoods to stay in.'},
-    {ico:'👨‍👩‍👧',label:'Family',prompt:'Suggest 3 family-friendly trips with young kids in mind — flights, stays and things to do.'},
-    {ico:'💎',label:'Luxury',   prompt:'Plan a quietly-luxurious getaway. Suggest 3 destinations and one signature stay in each.'}
+    {ico:`<svg viewBox="0 0 24 24" ${ICO_STROKE}><circle cx="12" cy="10" r="4"/><path d="M2 20c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M12 2v2M5.5 5.5l1.4 1.4M18.5 5.5l-1.4 1.4"/></svg>`,label:'Beach',   prompt:'Suggest 3 beach destinations I could book right now — mix short-haul and dreamy, with a rough vibe for each.'},
+    {ico:`<svg viewBox="0 0 24 24" ${ICO_STROKE}><path d="M4 21V8l5-3v16"/><path d="M9 21V5l6 3v13"/><path d="M15 21V11l5 2v8"/></svg>`,label:'City break',prompt:'Plan a 3-day city break for me. Suggest 3 cities that suit a long weekend and tell me why.'},
+    {ico:`<svg viewBox="0 0 24 24" ${ICO_STROKE}><path d="M3 20l6-11 4 6 2-3 6 8H3z" stroke-linejoin="round"/><circle cx="9" cy="6" r="1.4"/></svg>`,label:'Hiking',   prompt:'Where should I go for a hiking trip in the next few months? Give me 3 options across difficulty levels.'},
+    {ico:`<svg viewBox="0 0 24 24" ${ICO_STROKE}><path d="M3 12h18a9 6 0 0 1-18 0z"/><path d="M12 12V8M9 8c0-2 1-3 3-3s3 1 3 3"/></svg>`,label:'Food',     prompt:'Take me on a food trip. Suggest 3 destinations known for incredible food scenes and what to eat there.'},
+    {ico:`<svg viewBox="0 0 24 24" ${ICO_STROKE}><circle cx="12" cy="12" r="9"/><path d="M14.5 9.5l-2 5-3-1.5 2-5z" stroke-linejoin="round"/></svg>`,label:'Adventure',prompt:'Suggest 3 adventure trips — think rafting, diving, safaris or road trips — with a hook for each.'},
+    {ico:`<svg viewBox="0 0 24 24" ${ICO_STROKE}><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/><path d="M18 3l.6 1.4L20 5l-1.4.6L18 7l-.6-1.4L16 5l1.4-.6z" stroke-linejoin="round"/></svg>`,label:'Nightlife',prompt:'Where should I go for great nightlife? Suggest 3 cities with different vibes and neighbourhoods to stay in.'},
+    {ico:`<svg viewBox="0 0 24 24" ${ICO_STROKE}><circle cx="9" cy="7" r="2.6"/><path d="M3.5 20c0-3.5 2.5-5.5 5.5-5.5s5.5 2 5.5 5.5"/><circle cx="18" cy="8.5" r="2"/><path d="M14.5 20c.2-2.7 1.8-4.5 3.5-4.5s3.3 1.8 3.5 4.5"/></svg>`,label:'Family',prompt:'Suggest 3 family-friendly trips with young kids in mind — flights, stays and things to do.'},
+    {ico:`<svg viewBox="0 0 24 24" ${ICO_STROKE}><path d="M6 8l3-5h6l3 5-7 12z" stroke-linejoin="round"/><path d="M6 8h12M9 3l1.5 5-3.5 0M15 3l-1.5 5 3.5 0"/></svg>`,label:'Luxury',   prompt:'Plan a quietly-luxurious getaway. Suggest 3 destinations and one signature stay in each.'}
   ];
 
   // ---------- Rendering ----------
@@ -3621,7 +3700,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
     if(!t || !t.messages.length){
       const empty=document.createElement('div');
       empty.className='gEmpty';
-      empty.innerHTML=`<div class="gEmojiRow">Hello, I'm Gabriel.</div>
+      empty.innerHTML=`<div class="gEmojiRow">Hello, I'm Gabriella.</div>
         <p class="gCta">Spin the globe, tap a place, or tell me where you want to go.</p>
         <div class="gCatLbl">Pick a vibe · starts a new thread</div>
         <div class="gCatRow">${CATEGORIES.map((c,i)=>`<button class="gCat" type="button" data-cat="${i}"><span class="gCatIco">${c.ico}</span><span>${escapeHtml(c.label)}</span></button>`).join('')}</div>
@@ -3735,7 +3814,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
       });
       typing.remove();
       if(error || !data){
-        const msg=(error && error.message) || 'Gabriel is unavailable right now. Please try again.';
+        const msg=(error && error.message) || 'Gabriella is unavailable right now. Please try again.';
         const e=document.createElement('div'); e.className='gErr'; e.textContent=msg;
         messagesEl.appendChild(e); scrollBottom();
         console.warn('gabriel error',error);
@@ -3789,7 +3868,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
     send();
   }
 
-  // Keep Gabriel visible across every screen, but step aside when a
+  // Keep Gabriella visible across every screen, but step aside when a
   // full-screen overlay/modal takes over so it never covers actions.
   const OVERLAY_SELECTORS=['#modalOverlay','#confirmOverlay','#onboardOverlay','#profileOverlay','#tripsView'];
   function refreshFabVisibility(){
@@ -3815,7 +3894,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
   // Introduce the hint, then fade it to a calmer state after a few seconds
   setTimeout(()=>{ hint.className='hide'; }, 8000);
 
-  // Browsing/chatting with Gabriel doesn't need an account — only actually
+  // Browsing/chatting with Gabriella doesn't need an account — only actually
   // completing a booking does (already gated separately, see requireAuth()
   // call inside the booking flow). Opening the chat panel itself should
   // never force a login screen.
