@@ -156,41 +156,6 @@
   #profileBtn{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:rgba(255,255,255,0.08);
     color:var(--bg);cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px;}
 
-  /* ---------- TRAVEL WALLET ---------- */
-  #walletOverlay{position:absolute;inset:0;background:rgba(15,11,21,0.55);display:none;z-index:26;
-    align-items:flex-end;}
-  #walletSheet{width:100%;max-height:88vh;background:var(--paper);border-radius:22px 22px 0 0;
-    overflow-y:auto;color:var(--ink);animation:slideUp .28s ease;position:relative;}
-  #closeWallet{position:absolute;top:14px;right:16px;width:32px;height:32px;border-radius:50%;border:none;
-    background:#f3f3f3;color:#555;font-size:14px;cursor:pointer;}
-  #walletSheet .handle{width:38px;height:4px;background:rgba(255,255,255,.5);border-radius:4px;margin:10px auto 0;}
-  #walletBalanceHead{padding:26px 20px 18px;text-align:center;background:linear-gradient(135deg,var(--purple),var(--purple-deep));
-    color:#fff;}
-  #walletBalanceHead .lab{font-size:11.5px;text-transform:uppercase;letter-spacing:1px;opacity:.75;margin-bottom:6px;}
-  #walletBalanceHead .amt{font-size:34px;font-weight:800;}
-  #topUpChips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
-  .topUpChip{flex:1 1 calc(50% - 8px);background:#faf6ff;border:1.5px solid #eee;color:var(--purple);
-    font-weight:800;font-size:13px;padding:11px 6px;border-radius:12px;cursor:pointer;}
-  .topUpChip:active{background:#f1e6ff;}
-  #customTopUpRow{display:flex;gap:8px;}
-  #customTopUpRow input{flex:1;border:1.5px solid #eee;border-radius:12px;padding:10px 12px;font-size:13.5px;
-    font-family:inherit;color:var(--ink);}
-  #customTopUpRow button{background:linear-gradient(135deg,var(--glow),var(--purple));border:none;color:#fff;
-    padding:0 18px;border-radius:12px;font-weight:800;font-size:13px;cursor:pointer;}
-  #topUpMethodNote{font-size:11px;color:#999;margin-top:8px;}
-  #walletTxList{display:flex;flex-direction:column;gap:8px;}
-  .txRow{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:8px 0;
-    border-bottom:1px solid #f5f5f5;}
-  .txRow .txNote{color:#777;}
-  .txRow .txNote .txTime{display:block;font-size:10.5px;color:#aaa;}
-  .txRow .txAmt{font-weight:800;}
-  .txRow .txAmt.pos{color:#22c55e;}
-  .txRow .txAmt.neg{color:var(--purple);}
-  #txEmpty{text-align:center;color:#aaa;font-size:12.5px;padding:16px 0;}
-  .walletChip{pointer-events:auto;cursor:pointer;background:rgba(255,255,255,0.06);border:1px solid var(--line);
-    color:var(--text-dim);font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:100px;
-    display:inline-flex;align-items:center;gap:4px;}
-  #mapHeader .walletChip,#tripsHeader .walletChip{background:#faf6ff;border-color:#eee;color:var(--purple);}
   .legalLinks{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 14px;padding:14px 4px 4px;
     border-top:1px solid rgba(255,255,255,0.08);margin-top:10px;}
   .legalLinks a{font-size:10.5px;color:rgba(255,255,255,.5);text-decoration:none;letter-spacing:.3px;}
@@ -374,9 +339,19 @@
   .stepper .n{font-weight:800;min-width:16px;text-align:center;}
   .shuffleBtn{width:100%;padding:10px;border:1.5px dashed #ddd;border-radius:12px;background:#fff;
     color:#888;font-size:12.5px;font-weight:700;cursor:pointer;margin-top:2px;}
-  #totalBar{position:sticky;bottom:0;background:#fff;border-top:1px solid #eee;padding:14px 20px 22px;
-    display:flex;align-items:center;gap:14px;}
-  #totalBar .tot{flex:1;}
+  .modalStepsHint{padding:6px 20px 0;font-size:10px;color:#aaa;text-align:center;}
+  .modalTextInput{width:100%;background:#faf6ff;border:1.5px solid #eee;border-radius:12px;padding:10px 12px;
+    font-size:13.5px;font-family:inherit;color:var(--ink);box-sizing:border-box;}
+  /* ---- Sticky review/pay bar: itemized cost breakdown (always visible, updates live),
+     running total, payment-method trust cue, then the single primary action. ---- */
+  #totalBar{position:sticky;bottom:0;background:#fff;border-top:1px solid #eee;padding:12px 20px 20px;
+    display:flex;flex-direction:column;gap:2px;}
+  #priceBreakdown{padding-bottom:6px;border-bottom:1px dashed #eee;margin-bottom:8px;}
+  .pbRow{display:flex;align-items:baseline;justify-content:space-between;font-size:11.5px;padding:2px 0;}
+  .pbRow .pbL{color:#999;font-weight:600;}
+  .pbRow .pbL span{color:#bbb;font-weight:500;}
+  .pbRow .pbR{color:#666;font-weight:700;}
+  #totalBar .tot{display:flex;align-items:baseline;justify-content:space-between;padding:2px 0 10px;}
   #totalBar .tot .lab{font-size:10.5px;color:#999;font-weight:600;}
   #totalBar .tot .amt{font-size:20px;font-weight:900;display:inline-block;}
   @keyframes pulseTotal{
@@ -385,8 +360,15 @@
     100%{transform:scale(1);color:var(--ink);}
   }
   .pulseTotal{animation:pulseTotal .4s ease-out;}
-  #bookBtn{background:linear-gradient(135deg,var(--glow),var(--purple));color:#fff;border:none;
-    padding:14px 26px;border-radius:14px;font-weight:800;font-size:14.5px;cursor:pointer;}
+  #paymentTrust{background:#faf6ff;border:1px solid #f0e4ff;border-radius:12px;padding:10px 12px;margin-bottom:12px;}
+  #paymentTrust .ptMethod{display:flex;align-items:center;gap:9px;}
+  #paymentTrust .ptDot{color:var(--purple);font-size:13px;}
+  #paymentTrust .ptTitle{font-size:12.5px;font-weight:700;}
+  #paymentTrust .ptSub{font-size:10.5px;color:#888;margin-top:1px;}
+  #paymentTrust .ptNote{font-size:10.5px;color:#8a7aa0;line-height:1.45;margin-top:8px;padding-top:8px;border-top:1px dashed #e5d3fb;}
+  #paymentTrust .ptNote span{font-weight:800;color:var(--purple);}
+  #bookBtn{width:100%;background:linear-gradient(135deg,var(--glow),var(--purple));color:#fff;border:none;
+    padding:15px 26px;border-radius:14px;font-weight:800;font-size:14.5px;cursor:pointer;}
   #bookBtn:active{transform:scale(.97);}
   #closeModal{position:absolute;top:14px;right:16px;width:30px;height:30px;border-radius:50%;
     background:#f2f2f2;border:none;font-size:14px;cursor:pointer;z-index:2;}
@@ -683,7 +665,6 @@
          
        </div>
         <div class="rightSlot" id="topBarRight">
-          <button class="walletChip" id="walletChipGlobe">💳 <span id="walletChipGlobeLabel">R —</span></button>
           <button class="tripsBtn" id="authBtnGlobe"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg> <span id="authBtnLabel">Sign in</span></button>
           <button class="tripsBtn" id="tripsBtnGlobe"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12a1 1 0 0 1 1 1v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9a1 1 0 0 1 1-1z"/><path d="M9 8V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v3"/><path d="M3 13h18"/><path d="M10 13v3"/><path d="M14 13v3"/></svg> My Trips</button>
         </div>
@@ -732,7 +713,6 @@
         <div class="city" id="destCity">—</div>
         <div class="meta"><span class="liveDot"></span><span id="destMeta">Searching live availability…</span></div>
       </div>
-      <button class="walletChip" id="walletChipMap">💳 <span id="walletChipMapLabel">R —</span></button>
       <button class="tripsBtn" id="tripsBtnMap" style="color:var(--ink);border-color:#eee;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
     </div>
     <div id="mapFilters"></div>
@@ -761,7 +741,6 @@
         <div class="mark tripsMark"></div>
         <div class="t">My Trips</div>
       </div>
-      <button class="walletChip" id="walletChipTrips">💳 <span id="walletChipTripsLabel">R —</span></button>
       <button id="profileBtn" title="Profile"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></button>
     </div>
     <div id="tripsList"></div>
@@ -790,36 +769,6 @@
         <a href="legal/terms-of-service.md" target="_blank" rel="noopener">Terms of Service</a>
         <a href="legal/privacy-policy.md" target="_blank" rel="noopener">Privacy Policy</a>
         <a href="legal/refund-policy.md" target="_blank" rel="noopener">Refund Policy</a>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= TRAVEL WALLET ================= -->
-  <div id="walletOverlay">
-    <div id="walletSheet">
-      <button id="closeWallet">✕</button>
-      <div class="handle"></div>
-      <div id="walletBalanceHead">
-        <div class="lab">Travel Wallet balance</div>
-        <div class="amt" id="walletBigAmt">R 0</div>
-      </div>
-      <div class="sec">
-        <div class="lab">Top up</div>
-        <div id="topUpChips">
-          <button class="topUpChip" data-amt="500">+R500</button>
-          <button class="topUpChip" data-amt="1000">+R1,000</button>
-          <button class="topUpChip" data-amt="2500">+R2,500</button>
-          <button class="topUpChip" data-amt="5000">+R5,000</button>
-        </div>
-        <div id="customTopUpRow">
-          <input id="customTopUpInput" type="number" min="1" placeholder="Custom amount" inputmode="numeric">
-          <button id="customTopUpBtn">Add</button>
-        </div>
-        <div id="topUpMethodNote">Top up securely via Paystack — you'll be redirected back here once it's done.</div>
-      </div>
-      <div class="sec">
-        <div class="lab">Recent activity</div>
-        <div id="walletTxList"></div>
       </div>
     </div>
   </div>
@@ -855,29 +804,42 @@
       </div>
 
       <div id="modalSteps">
-        <div class="stepDot active" data-target="stepNights"><span class="stepNum">1</span><span class="stepLabel">Nights</span></div>
+        <div class="stepDot active" data-target="stepNights"><span class="stepNum">1</span><span class="stepLabel">Stay</span></div>
         <div class="stepLine"></div>
         <div class="stepDot" data-target="stepFlight"><span class="stepNum">2</span><span class="stepLabel">Flight</span></div>
         <div class="stepLine"></div>
         <div class="stepDot" data-target="stepTransfers"><span class="stepNum">3</span><span class="stepLabel">Transfers</span></div>
         <div class="stepLine"></div>
-        <div class="stepDot" data-target="stepPayment"><span class="stepNum">4</span><span class="stepLabel">Payment</span></div>
+        <div class="stepDot" data-target="stepGuest"><span class="stepNum">4</span><span class="stepLabel">Guest</span></div>
+        <div class="stepLine"></div>
+        <div class="stepDot" data-target="stepReview"><span class="stepNum">5</span><span class="stepLabel">Review</span></div>
       </div>
+      <div class="modalStepsHint">Tap any step to jump straight there — everything below stays editable, in any order.</div>
 
       <div class="sec" id="stepNights">
-        <div class="lab">Nights</div>
+        <div class="lab">Stay · length of trip</div>
         <div class="row">
-          <div class="l">Length of stay</div>
+          <div class="l">Check-in</div>
+          <input id="checkinInput" class="modalTextInput" type="date" style="width:auto;">
+        </div>
+        <div class="row">
+          <div class="l">Nights at this hotel</div>
           <div class="stepper">
             <button id="nightsMinus">–</button>
             <div class="n" id="nightsVal">3</div>
             <button id="nightsPlus">+</button>
           </div>
         </div>
+        <div class="sub" id="repriceStatus" style="margin:2px 0 0;min-height:14px;"></div>
       </div>
 
       <div class="sec" id="stepFlight">
-        <div class="lab">Flight · from your city</div>
+        <div class="lab">Flight <span id="flightDatesLabel" style="text-transform:none;font-weight:600;color:#aaa;"></span></div>
+        <div class="row" style="padding-top:0;padding-bottom:6px;">
+          <div class="l">Departing from</div>
+        </div>
+        <input id="originInput" class="modalTextInput" type="text" value="Johannesburg (JNB)" autocomplete="off" placeholder="Johannesburg (JNB)">
+        <div class="sub" style="margin:6px 0 12px;">We'll match this against available flights — full airport search is coming soon.</div>
         <div id="flightOptions"></div>
         <button class="shuffleBtn" id="shuffleFlights">↻ Show more flight options</button>
       </div>
@@ -889,33 +851,37 @@
         <div class="row"><div class="l">Hotel → Departure airport (return)</div><div class="r" id="t3p">—</div></div>
       </div>
 
-      <div class="sec">
+      <div class="sec" id="stepGuest">
         <div class="lab">Booking for</div>
-        <div class="row">
+        <div class="row" style="padding-top:0;padding-bottom:6px;">
           <div class="l">Lead guest</div>
         </div>
-        <input id="travellerInput" type="text" placeholder="You" autocomplete="off"
-          style="width:100%;background:#faf6ff;border:1.5px solid #eee;border-radius:12px;padding:10px 12px;font-size:13.5px;font-family:inherit;color:var(--ink);">
+        <input id="travellerInput" class="modalTextInput" type="text" placeholder="You" autocomplete="off">
         <div class="sub" style="margin-top:6px;">Booking on your account — leave blank if you're the traveller, or add someone else's name.</div>
       </div>
 
-      <div class="sec" id="stepPayment">
-        <div class="lab">Payment method</div>
-        <div class="legOption sel" id="payWalletOpt">
-          <div><div class="t1">Travel Wallet</div><div class="t2" id="walletBalanceLine">—</div></div>
-          <div class="p">●</div>
-        </div>
-        <div class="legOption" id="payCardOpt">
-          <div><div class="t1">Credit / Debit Card</div><div class="t2">Pay the full amount by card</div></div>
-          <div class="p">○</div>
-        </div>
-        <div class="sub" id="paySplitNote" style="margin-top:4px;"></div>
+      <div class="sec" id="stepReview">
+        <div class="lab">Review your trip</div>
+        <div class="row"><div class="l">Destination</div><div class="r" id="rvDest">—</div></div>
+        <div class="row"><div class="l">Stay</div><div class="r" id="rvStay">—</div></div>
+        <div class="row"><div class="l">Flight</div><div class="r" id="rvFlight">—</div></div>
+        <div class="row"><div class="l">Transfers</div><div class="r" id="rvTransfers">—</div></div>
+        <div class="row"><div class="l">Guest</div><div class="r" id="rvGuest">—</div></div>
       </div>
 
       <div id="totalBar">
+        <div id="priceBreakdown">
+          <div class="pbRow"><span class="pbL">Stay <span id="pbNightsLabel">· 3 nights</span></span><span class="pbR" id="pbHotel">R 0</span></div>
+          <div class="pbRow"><span class="pbL">Flight</span><span class="pbR" id="pbFlight">R 0</span></div>
+          <div class="pbRow"><span class="pbL">Transfers</span><span class="pbR" id="pbTransfer">R 0</span></div>
+        </div>
         <div class="tot">
           <div class="lab">TOTAL · FLIGHT + STAY + TRANSFERS</div>
           <div class="amt" id="totalAmt">R 0</div>
+        </div>
+        <div id="paymentTrust">
+          <div class="ptMethod"><span class="ptDot">●</span><div><div class="ptTitle">Credit / Debit Card</div><div class="ptSub">Secure checkout via Paystack</div></div></div>
+          <div class="ptNote">🔒 You'll be redirected to Paystack to complete a secure payment of <span id="ptAmt">R 0</span> now — your card is charged immediately, this isn't a hold.</div>
         </div>
         <button id="bookBtn">Book with Graba</button>
       </div>
@@ -961,9 +927,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 /* ============================================================
-   SUPABASE — real backend. Auth, wallet, trips and bookings all
-   live in this project; nothing in this file talks to localStorage
-   for anything account-related (see AUTH GATE below for the one
+   SUPABASE — real backend. Auth, trips and bookings all live in
+   this project; nothing in this file talks to localStorage for
+   anything account-related (see AUTH GATE below for the one
    exception that's deliberately local: Gabriel's thread list, which
    is just UI bookkeeping, not account data).
 ============================================================ */
@@ -975,8 +941,8 @@ let currentUser=null;
 // Auth is on-demand, not a startup gate: browsing/search/hotel details work
 // for anyone, signed in or not (the globe view must never force a sign-in).
 // requireAuth() is the single gate used by anything that actually needs an
-// account — wallet, trips, Gabriel, topping up, and booking itself. Call it
-// right before the action; if it returns false the auth card is shown and
+// account — trips, Gabriel, and booking itself. Call it right before the
+// action; if it returns false the auth card is shown and
 // the caller should stop, letting the user retry the same action once
 // signed in. openAuth/closeAuth just toggle the overlay; the real sign
 // in/up/out logic lives further down, next to the auth form markup.
@@ -997,8 +963,8 @@ function requireAuth(message){
 
 /* ============================================================
    PERSISTENT STATE — localStorage for profile & Gabriel thread UI
-   bookkeeping only. Wallet and trips are real Supabase data — see
-   loadWalletAndTrips() further down.
+   bookkeeping only. Trips are real Supabase data — see loadTrips()
+   further down.
 ============================================================ */
 function triggerHaptic(strength=10){
   // Haptic feedback for mobile (iPhone, Android)
@@ -1231,7 +1197,15 @@ function adaptHotelSearchResult(h, dest, i){
     profitPct: rand(3,22)/100,
     photo: null,
     address: '',
-    live: true
+    live: true,
+    // Real-reservation identifier (LiteAPI prebook→book flow, see CLAUDE.md)
+    // — null when booking-hotel-search couldn't find one (see its file
+    // header CONFIDENCE note); mock hotels never have this field at all.
+    offerId: (typeof h.offerId==='string' && h.offerId) ? h.offerId : null,
+    // Raw, unprefixed LiteAPI hotel id — lets us ask booking-hotel-search to
+    // reprice just this one hotel for chosen dates (see repriceActiveHotel()
+    // below); null for mock hotels, which never reprice.
+    liteApiId: (typeof h.liteApiId==='string' && h.liteApiId) ? h.liteApiId : null
   };
 }
 async function fetchRealHotels(destKey, centerLat, centerLon){
@@ -2822,19 +2796,31 @@ beltScroll.addEventListener('scroll',()=>{
 ============================================================ */
 const modalOverlay=document.getElementById('modalOverlay');
 let activeHotel=null, nights=3, flights=[], selectedFlightIdx=0;
+// Real check-in date for the active booking, ISO YYYY-MM-DD — set fresh each
+// time openPackageModal() runs (no persisted "last search" to restore).
+// Check-out is always derived (checkinDate + nights), never a second
+// independently-editable field — see computeCheckoutDate().
+let checkinDate=null;
+function computeCheckoutDate(checkin, n){
+  const d=new Date(checkin+'T00:00:00Z');
+  d.setDate(d.getDate()+n);
+  return d.toISOString().slice(0,10);
+}
+function fmtDateShort(iso){
+  if(!iso) return '—';
+  const d=new Date(iso+'T00:00:00Z');
+  return d.toLocaleDateString('en-ZA',{day:'numeric',month:'short',timeZone:'UTC'});
+}
 let transferPrices={t1:0,t2:0,t3:0};
 
 /* ============================================================
-   TRAVELLER & ITINERARY — wallet balance, transaction history and
-   bookings are real Supabase data (see loadWalletAndTrips() below);
-   only the local "profile" contact-card form (name/email/phone,
-   used for the WhatsApp confirmation message) still lives in
-   localStorage, since it isn't account data.
+   TRAVELLER & ITINERARY — bookings are real Supabase data (see
+   loadTrips() below); only the local "profile" contact-card form
+   (name/email/phone, used for the WhatsApp confirmation message)
+   still lives in localStorage, since it isn't account data.
 ============================================================ */
-let paymentMethod='wallet';               // 'wallet' | 'card'
 let travellerName='';                     // blank = "You" (lead guest)
-let walletBalance=0;                      // mirrors the wallets row for the signed-in user
-let walletTx=[];                          // wallet_transactions ledger
+let originCity='Johannesburg (JNB)';      // free-text departure city — UI only, not yet wired to real flight search (see CLAUDE.md)
 const myTrips=[];                         // confirmed bookings — backs the Itinerary/Planner view
 let profile={name:'', email:'', phone:''}; // view/update profile details
 
@@ -2856,57 +2842,9 @@ function loadState(){
 loadState();
 if(profile.name) travellerName=profile.name;
 
-// ---- Real wallet + trips (Supabase) ----
-function walletLine(){ return `R${walletBalance.toLocaleString()} available`; }
-function updateWalletChips(){
-  const line=`R${walletBalance.toLocaleString()}`;
-  ['walletChipGlobeLabel','walletChipMapLabel','walletChipTripsLabel'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.textContent=line;
-  });
-}
-function timeAgo(ts){
-  const mins=Math.max(0, Math.round((Date.now()-ts)/60000));
-  if(mins<1) return 'just now';
-  if(mins<60) return mins+'m ago';
-  const hrs=Math.round(mins/60);
-  if(hrs<24) return hrs+'h ago';
-  return Math.round(hrs/24)+'d ago';
-}
-function renderWalletView(){
-  const bigAmt=document.getElementById('walletBigAmt');
-  if(bigAmt) bigAmt.textContent=fmtR(walletBalance);
-  updateWalletChips();
-  const list=document.getElementById('walletTxList');
-  if(!list) return;
-  list.innerHTML='';
-  if(!walletTx.length){
-    list.innerHTML='<div id="txEmpty">No activity yet.</div>';
-    return;
-  }
-  walletTx.forEach(tx=>{
-    const row=document.createElement('div');
-    row.className='txRow';
-    row.innerHTML=`<div class="txNote">${tx.note}<span class="txTime">${timeAgo(tx.ts)}</span></div>
-      <div class="txAmt ${tx.amount>=0?'pos':'neg'}">${tx.amount>=0?'+':'−'}${fmtR(Math.abs(tx.amount))}</div>`;
-    list.appendChild(row);
-  });
-}
-function openWallet(){
-  renderWalletView();
-  document.getElementById('walletOverlay').style.display='flex';
-}
-function closeWallet(){
-  document.getElementById('walletOverlay').style.display='none';
-}
-async function loadWalletAndTrips(){
-  const [{data:walletRow}, {data:txRows}, {data:bookingRows}] = await Promise.all([
-    sb.from('wallets').select('*').single(),
-    sb.from('wallet_transactions').select('*').order('created_at',{ascending:false}).limit(50),
-    sb.from('bookings').select('*').order('created_at',{ascending:false})
-  ]);
-  walletBalance = walletRow ? Number(walletRow.balance) : 0;
-  walletTx = (txRows||[]).map(r=>({note:r.note, amount:Number(r.amount), ts:new Date(r.created_at).getTime()}));
+// ---- Real trips (Supabase) ----
+async function loadTrips(){
+  const {data:bookingRows} = await sb.from('bookings').select('*').order('created_at',{ascending:false});
   myTrips.length=0;
   myTrips.push(...(bookingRows||[]).map(r=>({
     id:r.id, ref:r.booking_ref, city:r.destination_city, country:r.destination_country,
@@ -2916,66 +2854,36 @@ async function loadWalletAndTrips(){
     traveller:r.traveller_name || 'You (lead guest)', insurance:!!r.details?.insurance,
     cancelled:!!r.details?.cancelled, details:r.details||{}
   })));
-  updateWalletChips();
-  renderWalletView();
   renderTripsList();
 }
 
-// BRS Value Stream M: deposit via credit card — real money via Paystack.
-// The wallet is credited only by the paystack-webhook edge function after
-// Paystack confirms payment, never directly from here; this just starts the
-// transaction and sends the browser to Paystack's hosted page.
-async function topUpWallet(amount){
-  if(!amount || amount<=0) return;
-  if(!requireAuth('Sign in to top up your Travel Wallet')) return;
-  const {data:{session}} = await sb.auth.getSession();
-  if(!session){ alert('Please sign in again.'); return; }
-  const {data, error} = await sb.functions.invoke('create-paystack-transaction', {
-    body: {amount},
-    headers: {Authorization: `Bearer ${session.access_token}`}
-  });
-  if(error || !data?.url){ alert((error && error.message) || 'Could not start checkout.'); return; }
-  window.location.href = data.url;
-}
-
-// Handle the redirect back from Paystack (?topup=paystack&trxref=...&reference=...
-// — Paystack appends trxref/reference to whatever callback_url we gave it).
-// The webhook usually credits the wallet before the browser gets back here,
-// but there can be a race, so retry loadWalletAndTrips briefly.
+// Handle the redirect back from Paystack after a booking payment
+// (?booking=paystack&trxref=...&reference=... — Paystack appends
+// trxref/reference to whatever callback_url create-booking-payment gave
+// it). The booking row itself is only created by the paystack-webhook
+// edge function once Paystack confirms payment — never client-side — so
+// there can be a race between landing back here and the webhook having
+// run; retry loadTrips briefly, then surface the newly-created booking.
 async function handlePaystackRedirect(){
   const params=new URLSearchParams(window.location.search);
-  const topup=params.get('topup');
+  const bookingParam=params.get('booking');
   const reference=params.get('reference')||params.get('trxref');
-  if(!topup) return;
+  if(!bookingParam) return;
   history.replaceState(null,'',window.location.pathname);
-  if(topup==='cancelled'){ return; }
-  if((topup==='success'||topup==='paystack') && reference){
+  if(bookingParam==='cancelled'){ return; }
+  if((bookingParam==='success'||bookingParam==='paystack') && reference){
     for(let i=0;i<5;i++){
       await new Promise(r=>setTimeout(r,1200));
-      await loadWalletAndTrips();
+      await loadTrips();
+      const paid=myTrips.find(t=>t.details?.paymentRef===reference);
+      if(paid){ showBookingConfirmation(paid); return; }
     }
-    openWallet();
+    // Webhook hasn't landed yet after all retries — open My Trips anyway
+    // so the user isn't stuck on a blank screen; the booking will appear
+    // there as soon as the webhook does land.
+    showTripsView();
   }
 }
-document.getElementById('closeWallet').onclick=closeWallet;
-document.getElementById('walletOverlay').addEventListener('click',e=>{
-  if(e.target.id==='walletOverlay') closeWallet();
-});
-document.querySelectorAll('.topUpChip').forEach(btn=>{
-  btn.onclick=()=>topUpWallet(parseInt(btn.dataset.amt,10));
-});
-document.getElementById('customTopUpBtn').onclick=()=>{
-  const input=document.getElementById('customTopUpInput');
-  const amt=Math.round(parseFloat(input.value));
-  if(amt>0){ topUpWallet(amt); input.value=''; }
-};
-document.getElementById('customTopUpInput').addEventListener('keydown',e=>{
-  if(e.key==='Enter') document.getElementById('customTopUpBtn').click();
-});
-const gatedOpenWallet=()=>{ if(requireAuth('Sign in to view your Travel Wallet')) openWallet(); };
-document.getElementById('walletChipGlobe').onclick=gatedOpenWallet;
-document.getElementById('walletChipMap').onclick=gatedOpenWallet;
-document.getElementById('walletChipTrips').onclick=gatedOpenWallet;
 
 function fmtR(n){ return 'R '+Math.round(n).toLocaleString(); }
 function fmtShort(n){
@@ -2987,6 +2895,15 @@ function openPackageModal(hotel){
   activeHotel=hotel;
   notePreference(hotel.type, 3); // "shows interest" — customer weighting learns silently (BRS 2.1)
   nights=3;
+  // Default check-in is today+7, matching booking-hotel-search's own
+  // hardcoded default — nothing looks different until the user actually
+  // changes it. Reset fresh every time the modal opens; no persisted
+  // "last search" concept (see CLAUDE.md).
+  checkinDate=isoDateOffset(7);
+  document.getElementById('checkinInput').value=checkinDate;
+  document.getElementById('repriceStatus').textContent='';
+  document.getElementById('bookBtn').disabled=false;
+  repriceToken++; // invalidate any in-flight reprice call from a previously-opened hotel
   document.getElementById('mHeroWrap').innerHTML=photoTag(hotel,600,400);
   document.getElementById('mHotelName').textContent=hotel.name;
   document.getElementById('mHotelLoc').textContent=hotel.type+" · "+DESTINATIONS[currentDestKey].city+", "+DESTINATIONS[currentDestKey].country;
@@ -2997,8 +2914,7 @@ function openPackageModal(hotel){
   document.getElementById('rankToggle').textContent='ⓘ Why this ranks here';
 
   document.getElementById('travellerInput').value=travellerName;
-  paymentMethod=walletBalance>0?'wallet':'card';
-  renderPayOptions();
+  document.getElementById('originInput').value=originCity;
 
   transferPrices={t1:rand(120,340),t2:rand(150,420),t3:rand(150,420)};
   document.getElementById('t1p').textContent='R'+transferPrices.t1;
@@ -3025,8 +2941,10 @@ function openPackageModal(hotel){
   updateModalSteps();
 }
 
-/* Progress-step indicator: highlights which section is in view as user scrolls the modal */
-const MODAL_STEP_IDS=['stepNights','stepFlight','stepTransfers','stepPayment'];
+/* Progress-step indicator: highlights which section is in view as user scrolls the modal.
+   This is a jump-nav over one continuous scrollable review, not a gated wizard — every
+   section stays visible and editable regardless of which dot is "active". */
+const MODAL_STEP_IDS=['stepNights','stepFlight','stepTransfers','stepGuest','stepReview'];
 function updateModalSteps(){
   const modalEl=document.getElementById('modal');
   const dots=document.querySelectorAll('#modalSteps .stepDot');
@@ -3059,8 +2977,60 @@ document.querySelectorAll('#modalSteps .stepDot').forEach(dot=>{
 document.getElementById('closeModal').onclick=()=>modalOverlay.style.display='none';
 document.getElementById('nightsMinus').onclick=()=>{ if(nights>1){nights--; sync();} };
 document.getElementById('nightsPlus').onclick=()=>{ nights++; sync(); };
-document.getElementById('travellerInput').addEventListener('input',e=>{ travellerName=e.target.value.trim(); });
-function sync(){ document.getElementById('nightsVal').textContent=nights; updateTotal(); }
+document.getElementById('travellerInput').addEventListener('input',e=>{ travellerName=e.target.value.trim(); updateTotal(); });
+document.getElementById('originInput').addEventListener('input',e=>{ originCity=e.target.value.trim(); });
+function sync(){ document.getElementById('nightsVal').textContent=nights; updateTotal(); repriceActiveHotel(); }
+document.getElementById('checkinInput').addEventListener('change', e=>{
+  if(e.target.value) checkinDate=e.target.value;
+  repriceActiveHotel();
+});
+
+// Real hotels (activeHotel.offerId/liteApiId set — see adaptHotelSearchResult())
+// re-fetch a date-specific price from booking-hotel-search whenever check-in
+// or nights changes, since LiteAPI's rates are genuinely date-dependent and
+// the previously-shown price/offerId belong to the OLD dates. Mock/fallback
+// hotels (genHotels()) have no liteApiId/offerId and keep doing exactly what
+// they already did: simple pricePerNight*nights, no network call.
+// `repriceToken` guards against a stale in-flight response landing after a
+// newer one (or after the modal was reopened for a different hotel).
+let repriceToken=0;
+async function repriceActiveHotel(){
+  if(!activeHotel || !activeHotel.offerId || !activeHotel.liteApiId) return;
+  const statusEl=document.getElementById('repriceStatus');
+  const bookBtn=document.getElementById('bookBtn');
+  const checkout=computeCheckoutDate(checkinDate, nights);
+  const myToken=++repriceToken;
+  const hotelForThisCall=activeHotel;
+  // Block booking until this reprice resolves — the currently-held offerId
+  // was priced for the PREVIOUS dates and must not be used to book the new
+  // ones (see CLAUDE.md / booking-hotel-search's offerId note).
+  bookBtn.disabled=true;
+  statusEl.textContent='Checking live price for these dates…';
+  statusEl.style.color='#999';
+  try{
+    const {data, error}=await sb.functions.invoke('booking-hotel-search', {
+      body: {hotelId: hotelForThisCall.liteApiId, checkin: checkinDate, checkout, count: 1}
+    });
+    if(myToken!==repriceToken || activeHotel!==hotelForThisCall) return; // stale — a newer call or a different hotel superseded this one
+    if(error) throw error;
+    const fresh = data && Array.isArray(data.hotels) ? data.hotels[0] : null;
+    if(!fresh || typeof fresh.pricePerNight!=='number' || !fresh.offerId){
+      throw new Error('booking-hotel-search returned no priced offer for these dates');
+    }
+    activeHotel.pricePerNight=fresh.pricePerNight;
+    activeHotel.offerId=fresh.offerId; // tied to these specific dates — the old offerId must not be reused for booking
+    if(typeof fresh.liteApiId==='string' && fresh.liteApiId) activeHotel.liteApiId=fresh.liteApiId;
+    statusEl.textContent='';
+    bookBtn.disabled=false;
+    updateTotal();
+  }catch(e){
+    console.warn('booking-hotel-search reprice failed for the chosen dates — keeping the last known-good price/offerId, blocking booking until a fresh price is confirmed:', e);
+    if(myToken!==repriceToken || activeHotel!==hotelForThisCall) return;
+    statusEl.textContent="Couldn't confirm pricing for these dates — try different dates.";
+    statusEl.style.color='#c0392b';
+    bookBtn.disabled=true;
+  }
+}
 
 function renderFlights(){
   const wrap=document.getElementById('flightOptions');
@@ -3082,22 +3052,6 @@ document.getElementById('shuffleFlights').onclick=()=>{
   renderFlights();
 };
 
-// ---- Payment method: Travel Wallet (with card fallback for any shortfall) or full card ----
-function renderPayOptions(){
-  const walletOpt=document.getElementById('payWalletOpt');
-  const cardOpt=document.getElementById('payCardOpt');
-  const walletLine_=document.getElementById('walletBalanceLine');
-  if(walletLine_) walletLine_.textContent=walletLine();
-  if(!walletOpt || !cardOpt) return;
-  walletOpt.classList.toggle('sel', paymentMethod==='wallet');
-  walletOpt.querySelector('.p').textContent = paymentMethod==='wallet' ? '●' : '○';
-  cardOpt.classList.toggle('sel', paymentMethod==='card');
-  cardOpt.querySelector('.p').textContent = paymentMethod==='card' ? '●' : '○';
-}
-
-document.getElementById('payWalletOpt').onclick=()=>{ paymentMethod='wallet'; renderPayOptions(); updateTotal(); };
-document.getElementById('payCardOpt').onclick=()=>{ paymentMethod='card'; renderPayOptions(); updateTotal(); };
-
 function currentTotal(){
   const hotelTotal=activeHotel.pricePerNight*nights;
   const flightTotal=flights[selectedFlightIdx].price;
@@ -3106,7 +3060,7 @@ function currentTotal(){
 }
 let lastTotalShown=null;
 function updateTotal(){
-  const {total}=currentTotal();
+  const {hotelTotal, flightTotal, transferTotal, total}=currentTotal();
   const totalEl=document.getElementById('totalAmt');
   totalEl.textContent=fmtR(total);
   if(lastTotalShown!==null && lastTotalShown!==total){
@@ -3115,16 +3069,73 @@ function updateTotal(){
     totalEl.classList.add('pulseTotal');
   }
   lastTotalShown=total;
-  const note=document.getElementById('paySplitNote');
-  if(paymentMethod==='wallet' && walletBalance<total){
-    const walletPart=Math.max(0,walletBalance);
-    const cardPart=total-walletPart;
-    note.textContent=`Wallet covers ${fmtR(walletPart)} — remaining ${fmtR(cardPart)} will be charged to card automatically.`;
-  } else {
-    note.textContent='';
-  }
+
+  // Itemized breakdown + payment trust note — always visible, updates live
+  // as nights/flight/transfers/guest change, so the total is never a
+  // surprise by the time the user reaches "Book with Graba".
+  document.getElementById('pbNightsLabel').textContent=`· ${nights} night${nights===1?'':'s'}`;
+  document.getElementById('pbHotel').textContent=fmtR(hotelTotal);
+  document.getElementById('pbFlight').textContent=fmtR(flightTotal);
+  document.getElementById('pbTransfer').textContent=fmtR(transferTotal);
+  document.getElementById('ptAmt').textContent=fmtR(total);
+
+  // Real travel dates, threaded through everywhere the trip is summarized —
+  // checkinDate is the one thing the user actually picks; checkout is always
+  // derived (computeCheckoutDate()). Flight times themselves are still mock
+  // (genFlights(), unrelated to Sabre/real dates until that's wired), so this
+  // is honestly just "here's your travel window," not a claim that the listed
+  // flight options were priced for it.
+  const checkoutDate=checkinDate ? computeCheckoutDate(checkinDate, nights) : null;
+  const dateRange = checkinDate ? `${fmtDateShort(checkinDate)} → ${fmtDateShort(checkoutDate)}` : '';
+  document.getElementById('flightDatesLabel').textContent = dateRange;
+
+  // Review section — one-glance summary of exactly what's being booked.
+  const flight=flights[selectedFlightIdx];
+  const dest=DESTINATIONS[currentDestKey];
+  document.getElementById('rvDest').textContent = dest ? `${dest.city}, ${dest.country}` : '—';
+  document.getElementById('rvStay').textContent = activeHotel ? `${activeHotel.name} · ${dateRange || (nights+' night'+(nights===1?'':'s'))}` : '—';
+  document.getElementById('rvFlight').textContent = flight ? `${flight.airline} · ${dateRange || flight.time}` : '—';
+  document.getElementById('rvTransfers').textContent = 'Airport ↔ hotel, both ways';
+  document.getElementById('rvGuest').textContent = travellerName ? travellerName : 'You (lead guest)';
 }
 
+// Populates and shows the "Trip booked" confirmation screen from a real
+// bookings row (see loadTrips()'s mapping for the shape of `trip`). Used
+// both right after landing back from Paystack (handlePaystackRedirect)
+// and could be reused anywhere else a confirmed booking needs to be shown.
+function showBookingConfirmation(trip){
+  document.getElementById('cRef').textContent=trip.ref;
+  document.getElementById('cDest').textContent=trip.city;
+  document.getElementById('cTraveller').textContent=trip.traveller;
+  document.getElementById('cFlight').textContent=trip.flight ? `${trip.flight.airline} · ${trip.flight.time} (R${trip.flight.price})` : '—';
+  document.getElementById('cHotel').textContent=trip.hotelName || '—';
+  document.getElementById('cNights').textContent=trip.nights+' nights ('+fmtR(trip.hotelTotal||0)+')';
+  document.getElementById('cTransfers').textContent=fmtR(trip.transferTotal||0);
+  document.getElementById('cPayment').textContent=trip.paymentLabel || 'Credit / Debit Card';
+  document.getElementById('cTotal').textContent=fmtR(trip.total);
+  const addBtn=document.getElementById('addInsuranceBtn');
+  if(trip.insurance){
+    addBtn.textContent='✓ Travel insurance added';
+    addBtn.classList.add('added');
+    addBtn.disabled=true;
+  } else {
+    addBtn.textContent='+ Add travel insurance · R150';
+    addBtn.classList.remove('added');
+    addBtn.disabled=false;
+  }
+  addBtn.dataset.bookingId=trip.id;
+
+  modalOverlay.style.display='none';
+  document.getElementById('confirmOverlay').style.display='flex';
+}
+
+// Booking is charged and created server-side only: this starts a Paystack
+// transaction for the full trip total (init transaction client-side,
+// webhook confirms and does the trusted write) and sends the browser to
+// Paystack's hosted checkout. No
+// booking row is created here — paystack-webhook creates it via
+// admin_create_booking once Paystack confirms the charge succeeded, and
+// handlePaystackRedirect picks it up when the browser lands back here.
 document.getElementById('bookBtn').onclick=async()=>{
   // Auth is deferred to this point, not a startup gate (see requireAuth()) —
   // browsing hotels/flights and opening the package builder never requires
@@ -3133,53 +3144,62 @@ document.getElementById('bookBtn').onclick=async()=>{
   notePreference(activeHotel.type, 8); // booking is the strongest customer-preference signal (BRS 3.3)
   const {hotelTotal, flightTotal, transferTotal, total}=currentTotal();
   const flight=flights[selectedFlightIdx];
-
-  // Payment split logic: allocate wallet funds first, card covers any shortfall
-  let walletUsed=0, cardUsed=0;
-  if(paymentMethod==='wallet'){
-    walletUsed=Math.min(walletBalance,total);
-    cardUsed=total-walletUsed;
-  } else {
-    cardUsed=total;
-  }
-  const paymentLabel = cardUsed<=0 ? 'Travel Wallet'
-    : walletUsed<=0 ? 'Credit Card'
-    : `Wallet ${fmtR(walletUsed)} + Card ${fmtR(cardUsed)}`;
   const travellerLabel = travellerName ? travellerName : 'You (lead guest)';
 
   const bookBtn=document.getElementById('bookBtn');
   bookBtn.disabled=true;
-  const {data:booking, error}=await sb.rpc('book_trip', {
-    p_destination_city:DESTINATIONS[currentDestKey].city,
-    p_destination_country:DESTINATIONS[currentDestKey].country,
-    p_traveller_name:travellerLabel,
-    p_nights:nights,
-    p_payment_method: walletUsed>0 && cardUsed>0 ? 'split' : (walletUsed>0 ? 'wallet' : 'card'),
-    p_total_amount:total,
-    p_wallet_portion: walletUsed>0 ? walletUsed : null,
-    p_details:{hotelName:activeHotel.name, flight, hotelTotal, flightTotal, transferTotal, paymentLabel, insurance:false}
+  const {data:{session}} = await sb.auth.getSession();
+  if(!session){ alert('Please sign in again.'); bookBtn.disabled=false; return; }
+
+  // Real hotel reservation, step 1 of 2 (LiteAPI prebook -> book — see
+  // CLAUDE.md). Hold the priced rate before charging the card, so a
+  // sold-out/expired rate is caught before payment where possible. Only
+  // real LiteAPI hotels have an offerId (see adaptHotelSearchResult()) —
+  // mock/fallback hotels (genHotels()) never did and were never going to be
+  // real reservations anyway, so this is skipped entirely for them and
+  // booking proceeds exactly as before. Any failure here is non-blocking:
+  // it's logged and booking still proceeds — paystack-webhook records the
+  // missing/failed reservation on the booking (details.supplierBookingFailed)
+  // for manual follow-up rather than the user losing their card charge over
+  // an inventory-hold quirk.
+  let prebookId=null;
+  if(activeHotel && activeHotel.offerId){
+    try{
+      const {data:pb, error:pbErr}=await sb.functions.invoke('liteapi-prebook', {
+        body: {offerId: activeHotel.offerId},
+        headers: {Authorization: `Bearer ${session.access_token}`}
+      });
+      if(pbErr) throw pbErr;
+      prebookId = (pb && pb.prebookId) ? pb.prebookId : null;
+      if(!prebookId) console.warn('liteapi-prebook did not return a prebookId — proceeding without a supplier hold; paystack-webhook will flag this booking as supplierBookingFailed.', pb);
+    }catch(e){
+      console.warn('liteapi-prebook failed — proceeding without a supplier hold (payment still goes ahead):', e);
+    }
+  } else if(activeHotel && activeHotel.live){
+    console.warn('Live LiteAPI hotel with no offerId — cannot prebook a real reservation for this hotel.', activeHotel.id);
+  }
+
+  // Best-effort holder first/last name — no dedicated form fields exist for
+  // this (out of scope, see CLAUDE.md); split the single traveller-name
+  // field on the first space instead.
+  const nameParts = travellerLabel.trim().split(/\s+/).filter(Boolean);
+  const holder = { firstName: nameParts[0] || 'Guest', lastName: nameParts.slice(1).join(' ') || 'Traveller' };
+
+  const {data, error} = await sb.functions.invoke('create-booking-payment', {
+    body: {
+      total_amount: total,
+      destination_city: DESTINATIONS[currentDestKey].city,
+      destination_country: DESTINATIONS[currentDestKey].country,
+      traveller_name: travellerLabel,
+      nights,
+      prebookId,
+      holder,
+      details: {hotelName:activeHotel.name, flight, hotelTotal, flightTotal, transferTotal, paymentLabel:'Credit / Debit Card', insurance:false, originCity, checkin:checkinDate, checkout:computeCheckoutDate(checkinDate, nights)}
+    },
+    headers: {Authorization: `Bearer ${session.access_token}`}
   });
-  bookBtn.disabled=false;
-  if(error){ alert(error.message); return; }
-  await loadWalletAndTrips();
-
-  document.getElementById('cRef').textContent=booking.booking_ref;
-  document.getElementById('cDest').textContent=DESTINATIONS[currentDestKey].city;
-  document.getElementById('cTraveller').textContent=travellerLabel;
-  document.getElementById('cFlight').textContent=`${flight.airline} · ${flight.time} (R${flight.price})`;
-  document.getElementById('cHotel').textContent=activeHotel.name;
-  document.getElementById('cNights').textContent=nights+' nights ('+fmtR(hotelTotal)+')';
-  document.getElementById('cTransfers').textContent=fmtR(transferTotal);
-  document.getElementById('cPayment').textContent=paymentLabel;
-  document.getElementById('cTotal').textContent=fmtR(total);
-  const addBtn=document.getElementById('addInsuranceBtn');
-  addBtn.textContent='+ Add travel insurance · R150';
-  addBtn.classList.remove('added');
-  addBtn.disabled=false;
-  addBtn.dataset.bookingId=booking.id;
-
-  modalOverlay.style.display='none';
-  document.getElementById('confirmOverlay').style.display='flex';
+  if(error || !data?.url){ alert((error && error.message) || 'Could not start checkout.'); bookBtn.disabled=false; return; }
+  window.location.href = data.url;
 };
 document.getElementById('addInsuranceBtn').onclick=async(e)=>{
   const btn=e.target;
@@ -3192,7 +3212,7 @@ document.getElementById('addInsuranceBtn').onclick=async(e)=>{
   document.getElementById('cTotal').textContent=fmtR(Number(booking.total_amount));
   btn.textContent='✓ Travel insurance added';
   btn.classList.add('added');
-  await loadWalletAndTrips();
+  await loadTrips();
 };
 document.getElementById('doneBtn').onclick=()=>{
   document.getElementById('confirmOverlay').style.display='none';
@@ -3281,7 +3301,7 @@ async function cancelTrip(ref){
   if(!confirm(`Cancel booking ${ref} to ${trip.city}? This can't be undone.`)) return;
   const {error}=await sb.from('bookings').update({details:{...(trip.details||{}), cancelled:true}}).eq('id', trip.id);
   if(error){ alert(error.message || 'Could not cancel this booking.'); return; }
-  await loadWalletAndTrips();
+  await loadTrips();
 }
 let viewBeforeTrips='globe';
 function showTripsView(){
@@ -3390,23 +3410,23 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
   // ---------- Build DOM ----------
   const fab=document.createElement('button');
   fab.id='gabrielFab';
-  fab.setAttribute('aria-label','Ask Gabriel, AI travel assistant');
+  fab.setAttribute('aria-label','Ask Gabriella, AI travel assistant');
   fab.innerHTML=`
     <span class="gGlow"></span>
     <span class="gRing">
       <svg viewBox="0 0 100 100" aria-hidden="true">
         <defs><path id="gTextPath" d="M 50, 50 m -42, 0 a 42,42 0 1,1 84,0 a 42,42 0 1,1 -84,0"/></defs>
-        <text><textPath href="#gTextPath" startOffset="0">YOUR AI TRAVEL AGENT - GABRIEL · YOUR AI TRAVEL AGENT - GABRIEL ·</textPath></text>
+        <text><textPath href="#gTextPath" startOffset="0">YOUR AI TRAVEL AGENT - GABRIELLA · YOUR AI TRAVEL AGENT - GABRIELLA ·</textPath></text>
       </svg>
     </span>
     <span class="gOrbit"></span>
-    <span class="gCore"><span class="gInner"></span><img class="gMark" src="/__l5e/assets-v1/8040e039-4b16-493c-8ea7-9da20d25aa15/graba-g-button.png" alt="Gabriel"></span>`;
+    <span class="gCore"><span class="gInner"></span><img class="gMark" src="/__l5e/assets-v1/8040e039-4b16-493c-8ea7-9da20d25aa15/graba-g-button.png" alt="Gabriella"></span>`;
   document.body.appendChild(fab);
 
   const hint=document.createElement('div');
   hint.id='gabrielHint';
   hint.className='hide';
-  hint.innerHTML='<div class="pill"><span class="dot"></span><span class="txt">SPIN • TAP • TELL GABRIEL</span></div><div class="tail"></div>';
+  hint.innerHTML='<div class="pill"><span class="dot"></span><span class="txt">SPIN • TAP • TELL GABRIELLA</span></div><div class="tail"></div>';
   document.body.appendChild(hint);
 
   const panel=document.createElement('div');
@@ -3423,12 +3443,12 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
       <div class="gHead">
         <button id="gThreadsBtn" aria-label="Threads">☰</button>
         <div class="avatar">G</div>
-        <div class="who"><div class="n">Gabriel</div><div class="r">Your AI Travel Agent</div></div>
+        <div class="who"><div class="n">Gabriella</div><div class="r">Your AI Travel Agent</div></div>
         <button id="gClose" aria-label="Close">✕</button>
       </div>
       <div id="gMessages"></div>
       <form id="gComposer">
-        <textarea id="gInput" rows="1" placeholder="Ask Gabriel anything about your trip…" autocomplete="off"></textarea>
+        <textarea id="gInput" rows="1" placeholder="Ask Gabriella anything about your trip…" autocomplete="off"></textarea>
         <button id="gSend" type="submit" aria-label="Send">→</button>
       </form>
     </div>`;
@@ -3493,7 +3513,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
     if(!t || !t.messages.length){
       const empty=document.createElement('div');
       empty.className='gEmpty';
-      empty.innerHTML=`<div class="gEmojiRow">Hello, I'm Gabriel.</div>
+      empty.innerHTML=`<div class="gEmojiRow">Hello, I'm Gabriella.</div>
         <p class="gCta">Spin the globe, tap a place, or tell me where you want to go.</p>
         <div class="gCatLbl">Pick a vibe · starts a new thread</div>
         <div class="gCatRow">${CATEGORIES.map((c,i)=>`<button class="gCat" type="button" data-cat="${i}"><span class="gCatIco">${c.ico}</span><span>${escapeHtml(c.label)}</span></button>`).join('')}</div>
@@ -3607,7 +3627,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
       });
       typing.remove();
       if(error || !data){
-        const msg=(error && error.message) || 'Gabriel is unavailable right now. Please try again.';
+        const msg=(error && error.message) || 'Gabriella is unavailable right now. Please try again.';
         const e=document.createElement('div'); e.className='gErr'; e.textContent=msg;
         messagesEl.appendChild(e); scrollBottom();
         console.warn('gabriel error',error);
@@ -3687,7 +3707,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
   // Introduce the hint, then fade it to a calmer state after a few seconds
   setTimeout(()=>{ hint.className='hide'; }, 8000);
 
-  fab.addEventListener('click',()=>{ if(requireAuth('Sign in to chat with Gabriel')) openPanel(); });
+  fab.addEventListener('click',()=>{ if(requireAuth('Sign in to chat with Gabriella')) openPanel(); });
   closeBtn.addEventListener('click',closePanel);
   panel.addEventListener('click',(e)=>{ if(e.target===panel) closePanel(); });
   threadsBtn.addEventListener('click',()=>threadsPane.classList.toggle('on'));
@@ -4187,7 +4207,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
   // script) so the overlay always reflects real auth state, whether it was
   // opened from the header button or from an on-demand gate elsewhere in
   // the app. `message` is an optional custom subtitle for the signed-out
-  // form (e.g. "Sign in to view your Travel Wallet").
+  // form (e.g. "Sign in to complete your booking").
   window.renderAuthAccountView=function(message){
     if(currentUser){
       form.style.display='none';
@@ -4251,7 +4271,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
   // Single source of truth for auth state — never force-shown automatically
   // (see requireAuth() near the top of the main script); this just keeps
   // currentUser, the header label and the account view in sync, and loads
-  // (or clears) the real wallet/trips whenever the session changes.
+  // (or clears) the real trips whenever the session changes.
   sb.auth.onAuthStateChange((_event, session)=>{
     const wasSignedIn=!!currentUser;
     currentUser=session?.user || null;
@@ -4259,11 +4279,11 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
     renderAuthAccountView();
     if(currentUser){
       if(!wasSignedIn) closeAuth();
-      loadWalletAndTrips();
+      loadTrips();
       handlePaystackRedirect();
     } else {
-      walletBalance=0; walletTx=[]; myTrips.length=0;
-      updateWalletChips(); renderWalletView(); renderTripsList();
+      myTrips.length=0;
+      renderTripsList();
     }
   });
 
