@@ -181,6 +181,8 @@
   .onboardMark{width:34px;height:34px;margin:0 auto 6px;}
   #onboardCard h3{margin:0 0 8px;font-size:16.5px;font-weight:800;}
   #onboardCard p{margin:0; color:#777; font-size:13px; line-height:1.5; min-height:58px;}
+  #onboardOriginInput{width:100%;background:#faf6ff;border:1.5px solid #eee;border-radius:12px;padding:10px 12px;
+    font-size:13.5px;color:var(--ink);margin-top:2px;box-sizing:border-box;text-align:left;}
   #onboardDots{display:flex;gap:6px;justify-content:center;margin:18px 0 16px;}
   #onboardDots .d{width:6px;height:6px;border-radius:50%;background:#e5dcf2;}
   #onboardDots .d.on{background:var(--purple);width:16px;border-radius:4px;}
@@ -658,6 +660,7 @@
     color:rgba(255,255,255,0.92);}
   #gabrielPanel.on #gabrielSheet{transform:translateX(0);opacity:1;}
   .gHead{padding:14px 16px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,0.06);}
+  .gHead .gHeadMark{width:26px;height:26px;flex-shrink:0;filter:drop-shadow(0 0 8px rgba(188,119,255,.5));}
   .gHead .avatar{width:38px;height:38px;border-radius:50%;
     background:radial-gradient(circle at 32% 28%,#8b6dff 0%,#571f84 55%,#2a0f4a 100%)
       url('assets/graba-icon-mark.png') center/70% no-repeat;
@@ -695,9 +698,6 @@
   .gEmpty{width:100%;max-width:100%;box-sizing:border-box;margin:auto;text-align:center;padding:24px;color:rgba(255,255,255,0.55);}
   .gEmpty .gEmojiRow{font-family:'Playfair Display',serif;font-style:italic;font-size:26px;color:#fff;margin-bottom:10px;}
   .gEmpty p{font-size:13px;line-height:1.55;max-width:280px;margin:0 auto 14px;}
-  .gEmpty p.gCta{font-family:'Outfit',sans-serif;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
-    color:rgba(255,255,255,.88);background:rgba(139,109,255,.12);border:1px solid rgba(139,109,255,.25);
-    border-radius:999px;padding:8px 14px;margin:0 auto 18px;max-width:260px;}
   .gStarters{display:flex;flex-direction:column;gap:8px;max-width:300px;margin:0 auto;}
   .gStarter{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);
     color:rgba(255,255,255,0.85);padding:10px 14px;border-radius:14px;font-size:12.5px;text-align:left;
@@ -858,6 +858,10 @@
         <div class="lab">Phone</div>
         <input id="profilePhone" type="tel" placeholder="+27 ..." autocomplete="off">
       </div>
+      <div class="sec">
+        <div class="lab">Flying from</div>
+        <input id="profileOrigin" type="text" placeholder="Your home city" autocomplete="off">
+      </div>
       <div class="sec"><button id="saveProfileBtn">Save profile</button></div>
       <div class="legalLinks legalLinksLight">
         <a href="legal/terms-of-service.md" target="_blank" rel="noopener">Terms of Service</a>
@@ -904,7 +908,8 @@
       <div class="oIcon" id="onboardIcon">🌍</div>
       <h3 id="onboardTitle">Never zero availability</h3>
       <p id="onboardText">Graba always widens the search — location, dates, or property type — rather than ever showing you nothing.</p>
-      <div id="onboardDots"><span class="d"></span><span class="d"></span><span class="d"></span></div>
+      <input id="onboardOriginInput" type="text" placeholder="e.g. Johannesburg" autocomplete="off" style="display:none">
+      <div id="onboardDots"></div>
       <button id="onboardNextBtn">Next</button>
       <button id="onboardSkipBtn">Skip</button>
     </div>
@@ -950,7 +955,7 @@
       </div>
 
       <div class="sec" id="stepFlight">
-        <div class="lab">Flight · from your city</div>
+        <div class="lab" id="flightStepLab">Flight · from your city</div>
         <div id="flightOptions"></div>
         <button class="shuffleBtn" id="shuffleFlights">↻ Show more flight options</button>
       </div>
@@ -3454,7 +3459,7 @@ let travellerName='';                     // blank = "You" (lead guest)
 let walletBalance=0;                      // mirrors the wallets row for the signed-in user
 let walletTx=[];                          // wallet_transactions ledger
 const myTrips=[];                         // confirmed bookings — backs the Itinerary/Planner view
-let profile={name:'', email:'', phone:''}; // view/update profile details
+let profile={name:'', email:'', phone:'', originCity:'', originCode:''}; // view/update profile details
 
 // ---- Persistence (profile contact card only)
 const STORAGE_KEY='graba_state_v1';
@@ -3468,7 +3473,7 @@ function loadState(){
     const raw=localStorage.getItem(STORAGE_KEY);
     if(!raw) return;
     const saved=JSON.parse(raw);
-    if(saved.profile) profile=Object.assign({name:'',email:'',phone:''}, saved.profile);
+    if(saved.profile) profile=Object.assign({name:'',email:'',phone:'',originCity:'',originCode:''}, saved.profile);
   } catch(e){ /* corrupted/blocked storage — start fresh */ }
 }
 loadState();
@@ -3623,6 +3628,7 @@ function openPackageModal(hotel){
   document.getElementById('t2p').textContent='R'+transferPrices.t2;
   document.getElementById('t3p').textContent='R'+transferPrices.t3;
 
+  document.getElementById('flightStepLab').textContent='Flight · from '+(profile.originCity||'Johannesburg');
   flights=genFlights();
   selectedFlightIdx=0;
   renderFlights();
@@ -3923,10 +3929,24 @@ document.getElementById('tripsBackBtn').onclick=hideTripsView;
 
 
 // ---- Profile (BRS Value Stream K: view/update profile details) ----
+// Resolves free-text "flying from" input against the same search index the
+// destination box uses, so "johannesburg" etc. picks up a real IATA code
+// when available; falls back to storing the raw text rather than
+// discarding an unrecognized city. Shared by the profile form and the
+// one-time onboarding origin question.
+function resolveOriginInput(raw){
+  if(!raw) return {originCity:'', originCode:''};
+  const place=findPlace(raw);
+  if(place){
+    return {originCity:place.full, originCode:(place.destKey && DESTINATIONS[place.destKey] && DESTINATIONS[place.destKey].code) || ''};
+  }
+  return {originCity:raw, originCode:''};
+}
 function openProfile(){
   document.getElementById('profileName').value=profile.name;
   document.getElementById('profileEmail').value=profile.email;
   document.getElementById('profilePhone').value=profile.phone;
+  document.getElementById('profileOrigin').value=profile.originCity;
   document.getElementById('profileOverlay').style.display='flex';
 }
 function closeProfile(){
@@ -3941,6 +3961,7 @@ document.getElementById('saveProfileBtn').onclick=()=>{
   profile.name=document.getElementById('profileName').value.trim();
   profile.email=document.getElementById('profileEmail').value.trim();
   profile.phone=document.getElementById('profilePhone').value.trim();
+  Object.assign(profile, resolveOriginInput(document.getElementById('profileOrigin').value.trim()));
   if(profile.name) travellerName=profile.name; // keep booking's default lead guest in sync
   saveState();
   closeProfile();
@@ -3952,6 +3973,13 @@ const ONBOARD_STEPS=[
   {icon:'🌍', title:'Never zero availability', text:'Graba always widens the search — location, dates, or property type — rather than ever showing you nothing.'},
   {icon:'⭐', title:"Results are ranked for you", text:'Every stay is scored on your preferences, profit, service rating and supplier priority. Tap "Why this ranks here" on any stay to see the actual breakdown.'},
   {icon:'💳', title:'One trip, one checkout', text:'Book flights, stays and transfers as a single order, pay by card, and track everything in My Trips.'},
+  // Data-capture step, not a feature explainer — asks once so flight
+  // suggestions and trip planning can actually be based on where the
+  // customer is really flying from, instead of always assuming
+  // Johannesburg. Answer is saved to profile.originCity/originCode
+  // (see the Next-button handler below) and stays editable afterwards
+  // from the profile overlay.
+  {icon:'✈️', title:'Where are you flying from?', text:'So we can plan trips — and flights — around your real starting point.', isOrigin:true},
 ];
 let onboardStep=0;
 function renderOnboardStep(){
@@ -3959,18 +3987,33 @@ function renderOnboardStep(){
   document.getElementById('onboardIcon').textContent=s.icon;
   document.getElementById('onboardTitle').textContent=s.title;
   document.getElementById('onboardText').textContent=s.text;
-  document.querySelectorAll('#onboardDots .d').forEach((d,i)=>d.classList.toggle('on', i===onboardStep));
+  document.getElementById('onboardText').style.display=s.isOrigin?'none':'';
+  const originInput=document.getElementById('onboardOriginInput');
+  originInput.style.display=s.isOrigin?'block':'none';
+  if(s.isOrigin) originInput.value=profile.originCity||'';
+  const dots=document.getElementById('onboardDots');
+  dots.innerHTML=ONBOARD_STEPS.map((_,i)=>`<span class="d${i===onboardStep?' on':''}"></span>`).join('');
   document.getElementById('onboardNextBtn').textContent=(onboardStep===ONBOARD_STEPS.length-1)?'Get started':'Next';
+}
+function saveOnboardOrigin(){
+  const raw=document.getElementById('onboardOriginInput').value.trim();
+  if(!raw) return;
+  Object.assign(profile, resolveOriginInput(raw));
+  saveState();
 }
 function closeOnboarding(){
   document.getElementById('onboardOverlay').style.display='none';
   try{ localStorage.setItem(ONBOARD_KEY,'1'); }catch(e){}
 }
 document.getElementById('onboardNextBtn').onclick=()=>{
+  if(ONBOARD_STEPS[onboardStep].isOrigin) saveOnboardOrigin();
   if(onboardStep<ONBOARD_STEPS.length-1){ onboardStep++; renderOnboardStep(); }
   else closeOnboarding();
 };
-document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
+document.getElementById('onboardSkipBtn').onclick=()=>{
+  if(ONBOARD_STEPS[onboardStep].isOrigin) saveOnboardOrigin();
+  closeOnboarding();
+};
 (function maybeShowOnboarding(){
   let seen=false;
   try{ seen=!!localStorage.getItem(ONBOARD_KEY); }catch(e){}
@@ -4039,6 +4082,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
         <div id="gThreadList"></div>
       </div>
       <div class="gHead">
+        <div class="mark gHeadMark" role="img" aria-label="Graba"></div>
         <button id="gThreadsBtn" aria-label="Threads">☰</button>
         <div class="avatar" role="img" aria-label="Gabriella"></div>
         <div class="who"><div class="n">Gabriella</div><div class="r">Your AI Travel Agent</div></div>
@@ -4115,7 +4159,6 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
       const empty=document.createElement('div');
       empty.className='gEmpty';
       empty.innerHTML=`<div class="gEmojiRow">Hello, I'm Gabriella.</div>
-        <p class="gCta">Spin the globe, tap a place, or tell me where you want to go.</p>
         <div class="gCatLbl">Pick a vibe · starts a new thread</div>
         <div class="gCatRow">${CATEGORIES.map((c,i)=>`<button class="gCat" type="button" data-cat="${i}"><span class="gCatIco">${c.ico}</span><span>${escapeHtml(c.label)}</span></button>`).join('')}</div>
         <div class="gCatLbl">Or try a starter</div>
