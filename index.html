@@ -65,7 +65,26 @@
   #topBarActions{display:contents;}
 
 
-  .searchWrap{position:absolute;bottom:calc(var(--safe-area-bottom,0px) + 14px);left:12px;right:76px;width:auto;max-width:none;z-index:5;pointer-events:auto;display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:0;box-sizing:border-box;}
+  /* Wraps destStrip + searchWrap so they stack via flex gap instead of
+     independently-guessed absolute-position math for each. */
+  #bottomStack{position:absolute;bottom:calc(var(--safe-area-bottom,0px) + 14px);left:12px;right:76px;z-index:5;pointer-events:none;display:flex;flex-direction:column;gap:10px;}
+  .searchWrap{position:static;width:auto;max-width:none;z-index:5;pointer-events:auto;display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:0;box-sizing:border-box;}
+
+  /* Flat horizontal destination photo strip (Lovable-style) — real curated
+     cities from DESTINATIONS, real Unsplash photos via the same SCENE_PHOTOS
+     pool used elsewhere, tap to jump straight into that destination's map
+     view (same as picking a search suggestion). */
+  #destStrip{pointer-events:auto;display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x proximity;
+    -webkit-overflow-scrolling:touch;padding:2px 2px 4px;}
+  #destStrip::-webkit-scrollbar{display:none;}
+  .destCard{position:relative;flex:0 0 auto;width:84px;height:112px;border-radius:12px;overflow:hidden;
+    scroll-snap-align:start;cursor:pointer;background-size:cover;background-position:center;
+    box-shadow:0 4px 14px rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.12);}
+  .destCard::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 45%,rgba(0,0,0,.78) 100%);}
+  .destCard .destCardLabel{position:absolute;left:6px;right:6px;bottom:6px;z-index:2;color:#fff;
+    font-family:'Outfit',sans-serif;font-size:10px;font-weight:700;letter-spacing:.03em;
+    text-transform:uppercase;text-shadow:0 1px 3px rgba(0,0,0,.6);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .prompt{font-family:'Playfair Display',Georgia,serif;font-style:italic;font-weight:400;
     font-size:19px;line-height:1.25;color:rgba(255,255,255,0.94);letter-spacing:-.2px;text-align:center;
     max-width:280px;text-wrap:balance;}
@@ -446,16 +465,6 @@
   #packBeltScroll{position:relative;width:0;height:0;z-index:2;
     transform-style:preserve-3d;
     will-change:transform;}
-  /* Neon purple energy rings — horizontal equatorial band around the enlarged globe */
-  #packBelt::before,#packBelt::after{content:"";position:absolute;left:50%;top:50%;
-    border-radius:50%;pointer-events:none;
-    transform:translate(-50%,-50%) rotateX(85deg);}
-  #packBelt::before{width:calc(var(--globe-d, 320px) * 0.891);height:calc(var(--globe-d, 320px) * 0.891);
-    border:3px solid rgba(200,140,255,.95);
-    box-shadow:0 0 30px 7px rgba(160,110,255,.85), inset 0 0 20px 4px rgba(160,110,255,.5);}
-  #packBelt::after{width:calc(var(--globe-d, 320px) * 1.034);height:calc(var(--globe-d, 320px) * 1.034);
-    border:2px solid rgba(200,140,255,.5);
-    box-shadow:0 0 38px 9px rgba(160,110,255,.45);}
   .packCard{position:absolute;left:0;top:0;
     width:calc(var(--globe-d, 320px) * 0.269);height:calc(var(--globe-d, 320px) * 0.372);
     margin-left:calc(var(--globe-d, 320px) * -0.1345);margin-top:calc(var(--globe-d, 320px) * -0.186);
@@ -705,16 +714,19 @@
        </div>
      </div>
 
-    <div class="searchWrap">
-      <div class="promptSub">Everywhere · in one search</div>
-      <div class="searchOuter">
-        <div id="suggestBox"></div>
-        <div class="searchBox">
-          <input id="destInput" type="text" placeholder="Try 'Zanzibar', 'Dubai', 'Maldives'..." autocomplete="off">
-          <button id="goBtn">→</button>
+    <div id="bottomStack">
+      <div id="destStrip" aria-label="Popular destinations"></div>
+      <div class="searchWrap">
+        <div class="promptSub">Everywhere · in one search</div>
+        <div class="searchOuter">
+          <div id="suggestBox"></div>
+          <div class="searchBox">
+            <input id="destInput" type="text" placeholder="Try 'Zanzibar', 'Dubai', 'Maldives'..." autocomplete="off">
+            <button id="goBtn">→</button>
+          </div>
         </div>
+        <div class="chips" id="chips"></div>
       </div>
-      <div class="chips" id="chips"></div>
     </div>
   </div>
   <div class="hint" id="globeHint" style="display:none;">One search. Flights, stays &amp; transfers — priced and booked as one trip.</div>
@@ -2258,6 +2270,43 @@ function goSearch(){
 }
 
 /* ============================================================
+   HOME-SCREEN DESTINATION STRIP — flat horizontal photo row under
+   the globe (Lovable reference), separate from the packBelt 3D ring
+   and the map view's own "van der belt" carousel below. Built from
+   DESTINATIONS (always available, no network dependency) rather than
+   the packBelt's /api/public/packages call, which 404s on this static
+   site (a leftover Next.js-only route from the Lovable prototype merge
+   that was never ported to a real Supabase edge function — worth
+   fixing separately, out of scope here).
+============================================================ */
+(function(){
+  const stripEl=document.getElementById('destStrip');
+  if(!stripEl) return;
+  const keys=Object.keys(DESTINATIONS);
+  stripEl.innerHTML=keys.map(key=>{
+    const d=DESTINATIONS[key];
+    const scene=SCENES[seedNum(key)%SCENES.length];
+    const pool=SCENE_PHOTOS[scene]||SCENE_PHOTOS.beach;
+    const photoId=pool[seedNum(key+'|strip')%pool.length];
+    const photoUrl=`https://images.unsplash.com/photo-${photoId}?auto=format&fit=crop&w=200&h=260&q=70`;
+    const label=(d.city.split(',')[0]||d.city).toUpperCase();
+    return `<div class="destCard" data-key="${key}" style="background-image:url('${photoUrl}')">
+      <div class="destCardLabel">${label}</div>
+    </div>`;
+  }).join('');
+  stripEl.addEventListener('click',(e)=>{
+    const card=e.target.closest('.destCard');
+    if(!card) return;
+    const key=card.dataset.key;
+    const d=DESTINATIONS[key];
+    if(!d) return;
+    currentDestKey=key;
+    addToSearchHistory(key);
+    flyToLatLon(d.lat, d.lon, 'search');
+  });
+})();
+
+/* ============================================================
    MAP VIEW (destination) + VAN DER BELT CAROUSEL
 ============================================================ */
 const mapView=document.getElementById('mapView');
@@ -3464,7 +3513,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
       </svg>
     </span>
     <span class="gOrbit"></span>
-    <span class="gCore"><span class="gInner"></span><img class="gMark" src="/__l5e/assets-v1/8040e039-4b16-493c-8ea7-9da20d25aa15/graba-g-button.png" alt="Gabriel"></span>`;
+    <span class="gCore"><span class="gInner"></span><img class="gMark" src="assets/graba-icon-mark.png" alt="Gabriel"></span>`;
   document.body.appendChild(fab);
 
   const hint=document.createElement('div');
