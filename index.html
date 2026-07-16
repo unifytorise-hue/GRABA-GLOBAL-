@@ -447,21 +447,21 @@
   #packBeltScroll{position:relative;width:0;height:0;z-index:2;
     transform-style:preserve-3d;
     will-change:transform;}
-  /* Thin Saturn-style ring band, tilted flat like the belt itself, sitting
-     behind the cards (which carry their own much higher inline z-index —
-     see positionRing() — so they always render in front of, "riding on
-     top of," this ring, not the other way round). Two close, slim rings
-     with a soft glow rather than one thick neon line — matches the
-     reference image instead of the earlier heavy-handed version. */
+  /* Thick neon Saturn-style ring band (per reference image), tilted flat
+     like the belt itself, sitting behind the cards (which carry their own
+     much higher inline z-index — see positionRing() — so they always
+     render in front of, "riding on top of," this ring). Layered
+     purple+blue box-shadows for a richer duotone glow closer to the
+     reference than a single-color blur. */
   #packBelt::before,#packBelt::after{content:"";position:absolute;left:50%;top:50%;
     border-radius:50%;pointer-events:none;z-index:1;
     transform:translate(-50%,-50%) rotateX(85deg);}
   #packBelt::before{width:calc(var(--globe-d, 320px) * 0.891);height:calc(var(--globe-d, 320px) * 0.891);
-    border:1.5px solid rgba(190,150,255,.55);
-    box-shadow:0 0 14px 2px rgba(160,110,255,.35);}
+    border:3px solid rgba(200,140,255,.95);
+    box-shadow:0 0 30px 7px rgba(160,110,255,.85), 0 0 46px 14px rgba(90,130,255,.4), inset 0 0 20px 4px rgba(160,110,255,.5);}
   #packBelt::after{width:calc(var(--globe-d, 320px) * 1.034);height:calc(var(--globe-d, 320px) * 1.034);
-    border:1px solid rgba(130,160,255,.35);
-    box-shadow:0 0 16px 3px rgba(110,140,255,.22);}
+    border:2px solid rgba(170,150,255,.6);
+    box-shadow:0 0 38px 9px rgba(140,120,255,.5), 0 0 56px 18px rgba(80,150,255,.3);}
   .packCard{position:absolute;left:0;top:0;
     width:calc(var(--globe-d, 320px) * 0.269);height:calc(var(--globe-d, 320px) * 0.372);
     margin-left:calc(var(--globe-d, 320px) * -0.1345);margin-top:calc(var(--globe-d, 320px) * -0.186);
