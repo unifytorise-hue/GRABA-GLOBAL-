@@ -31,7 +31,7 @@ We do not currently collect passport numbers, ID numbers, or other special/sensi
 
 We share the minimum necessary data with:
 
-- **Payment processor** ([Stripe] or successor) — to process wallet top-ups. We do not receive or store your full card number; the payment processor handles card data directly (PCI DSS compliance is the payment processor's responsibility for the card-data portion of the flow, not ours, provided we use their hosted checkout as designed).
+- **Payment processor** (Paystack) — to process wallet top-ups. We do not receive or store your full card number; the payment processor handles card data directly (PCI DSS compliance is the payment processor's responsibility for the card-data portion of the flow, not ours, provided we use their hosted checkout as designed).
 - **Flight search/booking supplier** (Sabre) — to search and, in future, book flights on your behalf.
 - **Hotel search supplier** (SerpApi/Google Hotels, and in future a hotel booking partner) — to search and display hotel availability.
 - **Our infrastructure/hosting provider** (Supabase) — as a data processor storing account, booking, and wallet data on our behalf, under their own data processing terms.
