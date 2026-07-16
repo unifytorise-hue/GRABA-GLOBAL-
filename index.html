@@ -3934,7 +3934,7 @@ document.getElementById('onboardSkipBtn').onclick=closeOnboarding;
      rotateY(theta) * translateZ(radius). Depth cue is applied per-card by
      reading the resulting world-Z from sin/cos of the current angle. */
   const RING_RADIUS=baseRadius*0.8875; // scales with the globe so the fan stays proportional on every screen size
-  let baseAngle=0, lastT=0, paused=false, spinDir=1, spinSpeed=0.07;
+  let baseAngle=0, lastT=0, paused=false, spinDir=-1, spinSpeed=0.07;
   function positionRing(){
     const cards=[...scroll.children];
     const n=cards.length; if(!n) return;
