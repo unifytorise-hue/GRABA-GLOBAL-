@@ -666,9 +666,16 @@
   #gabrielHint{animation:gHintFloat 3.2s ease-in-out infinite;}
   @keyframes gDotPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(1.35)}}
   @keyframes gHintFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
-  /* Destination category chips (in Gabriella's empty state) */
-  .gCatRow{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 12px;margin:0 -8px 14px;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
-  .gCatRow::-webkit-scrollbar{display:none;}
+  /* Destination category chips (in Gabriella's empty state) — auto-scrolls
+     right-to-left on its own (a looping marquee, not a manual drag-scroll):
+     .gCatTrack holds the category buttons rendered twice back-to-back (see
+     renderMessages()) and animates from translateX(0) to -50%, which is
+     exactly one full set's width, so it loops with no visible snap. Paused
+     on hover/touch so a tap still lands on the button the user meant to hit. */
+  .gCatRow{display:flex;overflow:hidden;padding:4px 2px 12px;margin:0 -8px 14px;}
+  .gCatTrack{display:flex;gap:8px;width:max-content;animation:gCatScroll 24s linear infinite;}
+  .gCatRow:hover .gCatTrack,.gCatRow:active .gCatTrack{animation-play-state:paused;}
+  @keyframes gCatScroll{from{transform:translateX(0);}to{transform:translateX(-50%);}}
   .gCat{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);
     border:1px solid rgba(255,255,255,0.10);color:rgba(255,255,255,0.86);padding:8px 12px;border-radius:999px;
     font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;cursor:pointer;
@@ -678,7 +685,7 @@
   .gCat .gCatIco{display:inline-flex;line-height:1;}
   .gCat .gCatIco svg{width:15px;height:15px;flex-shrink:0;}
   .gCatLbl{font-family:'Outfit',sans-serif;font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
-    color:rgba(255,255,255,.5);text-align:left;margin:0 auto 6px;max-width:300px;}
+    color:rgba(255,255,255,.5);text-align:center;margin:0 auto 6px;max-width:300px;}
   #gabrielPanel{position:fixed;inset:0;z-index:100;background:rgba(5,5,10,0.55);backdrop-filter:blur(6px);
     -webkit-backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .25s ease;}
   #gabrielPanel.on{opacity:1;pointer-events:auto;}
@@ -4173,9 +4180,14 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
     if(!t || !t.messages.length){
       const empty=document.createElement('div');
       empty.className='gEmpty';
+      // Rendered twice back-to-back (same data-cat indices both times, so
+      // the click-handler binding below works identically on either copy)
+      // so the marquee animation can scroll a full -50% and loop seamlessly
+      // instead of visibly snapping back to the start.
+      const catButtons=CATEGORIES.map((c,i)=>`<button class="gCat" type="button" data-cat="${i}"><span class="gCatIco">${c.ico}</span><span>${escapeHtml(c.label)}</span></button>`).join('');
       empty.innerHTML=`<div class="gEmojiRow">Hello, I'm Gabriella.</div>
         <div class="gCatLbl">Pick a vibe · starts a new thread</div>
-        <div class="gCatRow">${CATEGORIES.map((c,i)=>`<button class="gCat" type="button" data-cat="${i}"><span class="gCatIco">${c.ico}</span><span>${escapeHtml(c.label)}</span></button>`).join('')}</div>
+        <div class="gCatRow"><div class="gCatTrack">${catButtons}${catButtons}</div></div>
         <div class="gCatLbl">Or try a starter</div>
         <div class="gStarters">${STARTERS.map(s=>`<button class="gStarter" type="button">${escapeHtml(s)}</button>`).join('')}</div>`;
       messagesEl.appendChild(empty);
