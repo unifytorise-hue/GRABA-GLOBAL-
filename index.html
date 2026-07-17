@@ -66,7 +66,7 @@
     display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;}
   .globePhotoMarkerDismiss svg{width:9px;height:9px;}
   #globeUI{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-start;
-    pointer-events:none;padding:calc(6px + var(--safe-area-top)) 0 30px;transition:opacity .28s ease;}
+    pointer-events:none;padding:calc(32px + var(--safe-area-top)) 0 30px;transition:opacity .28s ease;}
   #topBar{display:flex;flex-direction:column;align-items:center;gap:14px;pointer-events:auto;padding:0 14px;width:100%;box-sizing:border-box;}
   #topBar > .brandSlot{width:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;min-width:0;gap:0;margin-top:4px;}
   .brandTagline{font-size:8.5px;color:rgba(255,255,255,0.55);letter-spacing:1.2px;text-align:center;font-weight:400;margin-top:-8px;}
@@ -75,7 +75,7 @@
      relative to #globeUI (the nearest positioned ancestor), with the same
      top offset #globeUI's own padding already gives the header row. */
   #topBar > .rightSlot{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:6px;min-width:0;flex-shrink:0;
-    position:absolute;top:calc(6px + var(--safe-area-top, 0px));right:14px;z-index:6;}
+    position:absolute;top:calc(32px + var(--safe-area-top, 0px));right:14px;z-index:6;}
   #topBar > .rightSlot > .tripsBtn{padding:6px 10px;font-size:8px;letter-spacing:1.4px;gap:5px;height:28px;line-height:1;}
   @media (min-width: 480px) {
     #topBar > .rightSlot > .tripsBtn{padding:7px 12px;font-size:8.5px;letter-spacing:1.8px;height:30px;}
@@ -654,7 +654,7 @@
      the same custom property drawGlobe() keeps in sync), so it tracks the
      globe across screen sizes instead of a fixed bottom-right offset. */
   #gabrielHint{position:fixed;left:50%;right:auto;
-    top:calc(50vh - (var(--globe-d, 320px) / 2) - 80px);
+    top:calc(50vh - (var(--globe-d, 320px) / 2) - 54px);
     transform:translateX(-50%);z-index:79;display:none;
     flex-direction:column;align-items:center;pointer-events:none;}
   #gabrielHint.show{display:flex;}
