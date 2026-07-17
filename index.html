@@ -3971,19 +3971,14 @@ function updateTotal(){
   lastTotalShown=total;
   const note=document.getElementById('paySplitNote');
   const bookBtn=document.getElementById('bookBtn');
-  // Card payment is temporarily disabled (see payCardOpt/bookBtn.onclick) —
-  // a wallet shortfall used to be silently "covered by card" with no real
-  // charge behind it, so block booking entirely instead until the wallet
-  // balance actually covers the total.
-  if(walletBalance<total){
-    const shortfall=total-Math.max(0,walletBalance);
-    note.textContent=`Insufficient Travel Wallet balance — top up ${fmtR(shortfall)} more to book. Card payments are temporarily unavailable.`;
-    note.style.color='#c0392b';
-    bookBtn.disabled=true;
-  } else {
-    note.textContent='';
-    bookBtn.disabled=false;
-  }
+  // Booking is fully paused for now, regardless of payment method or wallet
+  // balance — neither "Credit / Debit Card" nor a wallet shortfall was ever
+  // backed by a real charge (book_trip only debits the wallet; there's no
+  // card-charging step at all). Unconditional block until real
+  // charge-at-booking (Paystack) replaces book_trip — see PR #14.
+  note.textContent='Booking is temporarily paused while we finish wiring up real payment collection. Please check back soon.';
+  note.style.color='#c0392b';
+  bookBtn.disabled=true;
 }
 
 document.getElementById('bookBtn').onclick=async()=>{
@@ -3991,16 +3986,13 @@ document.getElementById('bookBtn').onclick=async()=>{
   // browsing hotels/flights and opening the package builder never requires
   // an account; booking is the one step that does.
   if(!requireAuth('Sign in to complete your booking')) return;
-  const {hotelTotal, flightTotal, transferTotal, total}=currentTotal();
-  // Hard guard, independent of the button's disabled state / whatever the
-  // payment-method UI currently shows: book_trip only ever debits the
-  // wallet, so any amount that would fall to "card" is not actually being
-  // charged. Block rather than silently create a free "paid" booking.
-  // Remove this once real charge-at-booking (Paystack) replaces book_trip.
-  if(walletBalance<total){
-    alert('Card payments are temporarily unavailable, and your Travel Wallet balance doesn\'t cover this trip. Please top up your wallet to book.');
-    return;
-  }
+  // Hard guard, independent of the button's disabled state: booking is
+  // fully paused for now (see updateTotal()'s comment above) — book_trip
+  // has no real charge behind either payment path, so block unconditionally
+  // rather than let any booking through. Remove this once real
+  // charge-at-booking (Paystack) replaces book_trip — see PR #14.
+  alert('Booking is temporarily paused while we finish wiring up real payment collection. Please check back soon.');
+  return;
   notePreference(activeHotel.type, 8); // booking is the strongest customer-preference signal (BRS 3.3)
   const flight=flights[selectedFlightIdx];
 
@@ -4052,6 +4044,13 @@ document.getElementById('bookBtn').onclick=async()=>{
   document.getElementById('confirmOverlay').style.display='flex';
 };
 document.getElementById('addInsuranceBtn').onclick=async(e)=>{
+  // Same gap as book_trip: add_insurance adds R150 to a booking's total
+  // with no real charge behind it either. Blocked alongside booking itself
+  // — see the note on bookBtn.onclick above. This path is already
+  // unreachable via normal UI flow now that booking itself is blocked, but
+  // guarded directly too in case that ever changes.
+  alert('Booking is temporarily paused while we finish wiring up real payment collection. Please check back soon.');
+  return;
   const btn=e.target;
   if(btn.classList.contains('added')) return;
   const bookingId=btn.dataset.bookingId;
