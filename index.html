@@ -4520,7 +4520,18 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
       });
       typing.remove();
       if(error || !data){
-        const msg=(error && error.message) || 'Gabriella is unavailable right now. Please try again.';
+        // supabase-js's FunctionsHttpError.message is just a generic
+        // "Edge Function returned a non-2xx status code" — the actual
+        // server-side error (e.g. a missing API key secret) is in the raw
+        // response body on error.context, which invoke() doesn't surface
+        // itself. Read it so the bubble shows something diagnosable.
+        let msg=(error && error.message) || 'Gabriella is unavailable right now. Please try again.';
+        if(error && error.context && typeof error.context.clone==='function'){
+          try{
+            const body=await error.context.clone().json();
+            if(body && body.error) msg=body.error+(body.detail?' — '+JSON.stringify(body.detail).slice(0,200):'');
+          }catch{}
+        }
         const e=document.createElement('div'); e.className='gErr'; e.textContent=msg;
         messagesEl.appendChild(e); scrollBottom();
         console.warn('gabriel error',error);
