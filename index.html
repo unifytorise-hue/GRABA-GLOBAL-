@@ -2174,7 +2174,10 @@ function drawLabels(cx,cy,R){
   }
   ctx.restore();
 
-  // continents: shown while zoomed out or before a continent is selected
+  // continents: shown while zoomed out or before a continent is selected.
+  // Bold, prominent all-caps overlay per the reference design (was a small
+  // 10.5px caption before) with a soft purple glow tying it to the rest of
+  // the UI's neon identity, instead of a plain dark outline.
   if(zoomLevel<1.7 || !focusedContinent){
     for(const c of CONTINENTS){
       const p=project(c.lon,c.lat,angleY,angleX);
@@ -2182,13 +2185,17 @@ function drawLabels(cx,cy,R){
       const sx=cx+p.x*R, sy=cy-p.y*R;
       const active=focusedContinent && focusedContinent.name===c.name;
       const label=c.name.toUpperCase().split('').join(' ');
-      ctx.font=(active?'600':'500')+' 10.5px Inter, Segoe UI';
+      ctx.font=(active?'800':'700')+' 15px Outfit, Inter, Segoe UI';
       ctx.textAlign='center';
       ctx.lineWidth=3;
       ctx.strokeStyle='rgba(5,5,12,0.55)';
       ctx.strokeText(label,sx,sy);
-      ctx.fillStyle=active?'rgba(255,255,255,0.98)':'rgba(255,255,255,0.82)';
+      ctx.save();
+      ctx.shadowColor='rgba(139,92,246,0.85)';
+      ctx.shadowBlur=active?16:10;
+      ctx.fillStyle=active?'rgba(255,255,255,0.98)':'rgba(255,255,255,0.88)';
       ctx.fillText(label,sx,sy);
+      ctx.restore();
     }
   }
 
@@ -2775,6 +2782,11 @@ function updateGlobePhotoMarkers(){
 // old ring's CSS rotateY/translateZ trick expects, just computed from the
 // globe's real rotation state instead of a manually-advanced counter.
 const RING_RADIUS=baseRadius*0.8875; // scales with the globe so the ring stays proportional on every screen size
+// Cards beyond this cosine are hidden outright rather than faded/blurred
+// into the distance — a fixed front-facing semicircular arc (per the
+// reference design) instead of a full 360° wraparound where dismissed
+// geography quietly reappears blurred on the far side.
+const RING_ARC_CUTOFF=0.12; // ~83° either side of dead-center
 function updateRingCards(){
   for(const m of globeMarkers){
     if(!m.ringEl) continue;
@@ -2782,15 +2794,16 @@ function updateRingCards(){
     const p=project(m.dest.lon, m.dest.lat, angleY, angleX);
     const theta=Math.atan2(p.x, p.z);
     const c=Math.cos(theta);
+    if(c<=RING_ARC_CUTOFF){ m.ringEl.style.display='none'; continue; }
+    m.ringEl.style.display='block';
     const depth=c*0.5+0.5;
-    const scl=0.42+0.68*depth;
+    const scl=0.55+0.55*depth;
     m.ringEl.style.transform=
       `rotateY(${theta}rad) translateZ(${RING_RADIUS}px)`+
       ` rotateY(${-theta}rad)`+
       ` scale(${scl})`;
-    const front=depth, back=Math.max(0,-c);
-    m.ringEl.style.opacity=String(Math.max(0.05, front*front*1.05 - back*0.4));
-    m.ringEl.style.filter=c<0.25?`blur(${Math.min(4,(0.25-c)*4)}px)`:'none';
+    m.ringEl.style.opacity=String(Math.min(1, 0.4+(c-RING_ARC_CUTOFF)*1.1));
+    m.ringEl.style.filter=c<0.3?`blur(${Math.min(2,(0.3-c)*6)}px)`:'none';
     m.ringEl.style.zIndex=String(1000+Math.round(c*500));
   }
 }
