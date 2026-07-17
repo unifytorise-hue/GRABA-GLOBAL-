@@ -4332,8 +4332,7 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
       const {data:{session}}=await sb.auth.getSession();
       if(!session){
         typing.remove();
-        const err=document.createElement('div'); err.className='gErr'; err.textContent='Please sign in again.';
-        messagesEl.appendChild(err); scrollBottom();
+        openAuth('Please sign in to continue');
         return;
       }
       const {data, error}=await sb.functions.invoke('concierge-chat', {
