@@ -591,6 +591,28 @@
     50%{transform:translateY(-16px);opacity:1;}
   }
 
+  /* Left/right swipe hint under the card ring — fades in shortly after the
+     home screen loads and fades out ~5s later (see the IIFE right after
+     the "swipe up to dismiss" one below). Positioned relative to the same
+     local origin #packSwipeHint uses (top:50% inside #packBelt, which
+     already carries the ring's own downward shift), offset by half a
+     card's height plus a gap so it sits just under the cards' bottom edge. */
+  #packSideSwipeHint{position:absolute;left:50%;top:50%;
+    transform:translate(-50%, calc(var(--globe-d, 320px) * 0.186 + 22px));
+    pointer-events:none;z-index:2000;opacity:0;transition:opacity .4s ease;
+    display:flex;align-items:center;gap:8px;}
+  #packSideSwipeHint.on{opacity:1;}
+  #packSideSwipeHint .ssArrow{font-size:13px;font-weight:700;color:#fff;line-height:1;
+    text-shadow:0 1px 3px rgba(0,0,0,.6);filter:drop-shadow(0 0 6px rgba(139,92,246,.7));}
+  #packSideSwipeHint .ssArrow.left{animation:ssPulseLeft 1.6s ease-in-out infinite;}
+  #packSideSwipeHint .ssArrow.right{animation:ssPulseRight 1.6s ease-in-out infinite;}
+  #packSideSwipeHint .ssLine{width:22px;height:1px;background:linear-gradient(90deg,transparent,rgba(188,119,255,.65),transparent);}
+  #packSideSwipeHint .ssTxt{font-size:10px;letter-spacing:2px;text-transform:uppercase;
+    color:#fff;background:rgba(15,7,30,.7);border:1px solid rgba(188,119,255,.4);
+    padding:4px 10px;border-radius:999px;text-shadow:0 1px 3px rgba(0,0,0,.6);white-space:nowrap;}
+  @keyframes ssPulseLeft{0%,100%{transform:translateX(0);opacity:.75;}50%{transform:translateX(-4px);opacity:1;}}
+  @keyframes ssPulseRight{0%,100%{transform:translateX(0);opacity:.75;}50%{transform:translateX(4px);opacity:1;}}
+
 
   #countryChip{display:none;position:absolute;left:50%;bottom:70px;transform:translateX(-50%);
     background:rgba(20,10,30,0.92);border:1px solid var(--line);border-radius:16px;padding:14px 16px;
@@ -813,6 +835,13 @@
        <div id="packSwipeHint" aria-hidden="true">
          <div class="psHand">☝️</div>
          <div class="psTxt">Swipe up to dismiss</div>
+       </div>
+       <div id="packSideSwipeHint" aria-hidden="true">
+         <span class="ssArrow left">←</span>
+         <span class="ssLine"></span>
+         <span class="ssTxt">Swipe</span>
+         <span class="ssLine"></span>
+         <span class="ssArrow right">→</span>
        </div>
      </div>
 
@@ -2708,22 +2737,37 @@ function buildRingCard(key,d){
 // Tap to fly to the destination (single click/tap — no double-tap needed,
 // unlike the old hotel-package cards, since there's no "book this" action
 // from a bare destination suggestion). Swipe up to dismiss, same gesture
-// and threshold as the old belt.
+// and threshold as the old belt. A left/right swipe on a card instead
+// forwards to the globe's own rotation (same angleY/autoRotate the canvas
+// drag handler uses, see canvas pointermove above) rather than sliding the
+// card independently — the ring is deliberately attached to the globe's
+// real rotation (see updateRingCards()), so dragging a card spins the
+// globe and the whole ring slides with it, exactly like dragging the globe.
 function attachRingCardGestures(el,key,d){
-  let startY=0,dy=0,active=false,pointerId=null,dragged=false;
+  let startY=0,startX=0,lastMoveX=0,dy=0,dx=0,active=false,pointerId=null,dragged=false,mode=null;
   el.addEventListener('pointerdown',(e)=>{
-    active=true; pointerId=e.pointerId; startY=e.clientY; dy=0; dragged=false;
+    active=true; pointerId=e.pointerId; startY=e.clientY; startX=e.clientX; lastMoveX=e.clientX;
+    dy=0; dx=0; dragged=false; mode=null;
     try{ el.setPointerCapture(pointerId); }catch{}
   });
   el.addEventListener('pointermove',(e)=>{
     if(!active) return;
-    dy=e.clientY-startY;
-    if(!dragged && Math.abs(dy)>8) dragged=true;
-    if(dragged){
+    dy=e.clientY-startY; dx=e.clientX-startX;
+    if(!dragged && (Math.abs(dy)>8 || Math.abs(dx)>8)){
+      dragged=true;
+      mode = Math.abs(dx)>Math.abs(dy) ? 'horizontal' : 'vertical';
+    }
+    if(dragged && mode==='vertical'){
       el.classList.add('dragging');
       const up=Math.min(0,dy);
       el.style.transform=`translateY(${up}px) scale(${1+up/2000})`;
       el.style.opacity=String(Math.max(.3, 1 - Math.abs(up)/220));
+      e.preventDefault();
+    } else if(dragged && mode==='horizontal'){
+      autoRotate=false;
+      const stepX=e.clientX-lastMoveX;
+      lastMoveX=e.clientX;
+      angleY += stepX*0.012;
       e.preventDefault();
     }
   });
@@ -2732,12 +2776,14 @@ function attachRingCardGestures(el,key,d){
     active=false;
     try{ el.releasePointerCapture(pointerId); }catch{}
     el.classList.remove('dragging');
-    if(dragged && dy<-70){
+    if(dragged && mode==='vertical' && dy<-70){
       el.classList.add('dismiss');
       dismissGlobeMarker(key);
     } else {
       el.style.transform=''; el.style.opacity='';
     }
+    if(mode==='horizontal') autoRotate=true;
+    mode=null;
   };
   el.addEventListener('pointerup',release);
   el.addEventListener('pointercancel',release);
@@ -4482,6 +4528,16 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
     showSwipeHint();
     try{ localStorage.setItem(HINT_KEY,'1'); }catch{}
   }, 2500);
+})();
+
+/* Left/right swipe hint under the card ring — appears shortly after the
+   home screen loads, gone 5s after that (matches attachRingCardGestures()'s
+   horizontal-drag-rotates-the-globe behavior above). */
+(function(){
+  const el=document.getElementById('packSideSwipeHint');
+  if(!el) return;
+  setTimeout(()=>{ el.classList.add('on'); }, 700);
+  setTimeout(()=>{ el.classList.remove('on'); }, 5000);
 })();
 </script>
 
