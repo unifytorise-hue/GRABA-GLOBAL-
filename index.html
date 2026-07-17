@@ -479,6 +479,7 @@
   #bookBtn{background:linear-gradient(135deg,var(--glow),var(--purple));color:#fff;border:none;
     padding:14px 26px;border-radius:14px;font-weight:800;font-size:14.5px;cursor:pointer;}
   #bookBtn:active{transform:scale(.97);}
+  #bookBtn:disabled{background:#ddd;color:#999;cursor:not-allowed;}
   #closeModal{position:absolute;top:14px;right:16px;width:30px;height:30px;border-radius:50%;
     background:#f2f2f2;border:none;font-size:14px;cursor:pointer;z-index:2;}
 
@@ -1128,8 +1129,8 @@
           <div><div class="t1">Travel Wallet</div><div class="t2" id="walletBalanceLine">—</div></div>
           <div class="p">●</div>
         </div>
-        <div class="legOption" id="payCardOpt">
-          <div><div class="t1">Credit / Debit Card</div><div class="t2">Pay the full amount by card</div></div>
+        <div class="legOption" id="payCardOpt" style="opacity:.5;cursor:not-allowed;">
+          <div><div class="t1">Credit / Debit Card</div><div class="t2">Temporarily unavailable — top up your Travel Wallet instead</div></div>
           <div class="p">○</div>
         </div>
         <div class="sub" id="paySplitNote" style="margin-top:4px;"></div>
@@ -3848,7 +3849,10 @@ function openPackageModal(hotel){
   document.getElementById('rankToggle').textContent='ⓘ Why this ranks here';
 
   document.getElementById('travellerInput').value=travellerName;
-  paymentMethod=walletBalance>0?'wallet':'card';
+  // Card payment is temporarily disabled (see payCardOpt/bookBtn below) —
+  // it never actually charges anything, so 'wallet' is the only real
+  // option right now regardless of balance.
+  paymentMethod='wallet';
   renderPayOptions();
 
   transferPrices={t1:rand(120,340),t2:rand(150,420),t3:rand(150,420)};
@@ -3938,7 +3942,15 @@ function renderPayOptions(){
 }
 
 document.getElementById('payWalletOpt').onclick=()=>{ paymentMethod='wallet'; renderPayOptions(); updateTotal(); };
-document.getElementById('payCardOpt').onclick=()=>{ paymentMethod='card'; renderPayOptions(); updateTotal(); };
+// Card payment is temporarily disabled: book_trip only ever debits the
+// Travel Wallet — there is no real charge behind "Credit / Debit Card" or
+// behind a wallet shortfall, so selecting it (or letting a shortfall
+// through) let anyone create a real "paid" booking for free. Blocked here
+// until real charge-at-booking (Paystack) lands — see bookBtn.onclick's
+// guard below for the other half of this.
+document.getElementById('payCardOpt').onclick=()=>{
+  alert('Card payments are temporarily unavailable. Please top up your Travel Wallet to book.');
+};
 
 function currentTotal(){
   const hotelTotal=activeHotel.pricePerNight*nights;
@@ -3958,12 +3970,19 @@ function updateTotal(){
   }
   lastTotalShown=total;
   const note=document.getElementById('paySplitNote');
-  if(paymentMethod==='wallet' && walletBalance<total){
-    const walletPart=Math.max(0,walletBalance);
-    const cardPart=total-walletPart;
-    note.textContent=`Wallet covers ${fmtR(walletPart)} — remaining ${fmtR(cardPart)} will be charged to card automatically.`;
+  const bookBtn=document.getElementById('bookBtn');
+  // Card payment is temporarily disabled (see payCardOpt/bookBtn.onclick) —
+  // a wallet shortfall used to be silently "covered by card" with no real
+  // charge behind it, so block booking entirely instead until the wallet
+  // balance actually covers the total.
+  if(walletBalance<total){
+    const shortfall=total-Math.max(0,walletBalance);
+    note.textContent=`Insufficient Travel Wallet balance — top up ${fmtR(shortfall)} more to book. Card payments are temporarily unavailable.`;
+    note.style.color='#c0392b';
+    bookBtn.disabled=true;
   } else {
     note.textContent='';
+    bookBtn.disabled=false;
   }
 }
 
@@ -3972,8 +3991,17 @@ document.getElementById('bookBtn').onclick=async()=>{
   // browsing hotels/flights and opening the package builder never requires
   // an account; booking is the one step that does.
   if(!requireAuth('Sign in to complete your booking')) return;
-  notePreference(activeHotel.type, 8); // booking is the strongest customer-preference signal (BRS 3.3)
   const {hotelTotal, flightTotal, transferTotal, total}=currentTotal();
+  // Hard guard, independent of the button's disabled state / whatever the
+  // payment-method UI currently shows: book_trip only ever debits the
+  // wallet, so any amount that would fall to "card" is not actually being
+  // charged. Block rather than silently create a free "paid" booking.
+  // Remove this once real charge-at-booking (Paystack) replaces book_trip.
+  if(walletBalance<total){
+    alert('Card payments are temporarily unavailable, and your Travel Wallet balance doesn\'t cover this trip. Please top up your wallet to book.');
+    return;
+  }
+  notePreference(activeHotel.type, 8); // booking is the strongest customer-preference signal (BRS 3.3)
   const flight=flights[selectedFlightIdx];
 
   // Payment split logic: allocate wallet funds first, card covers any shortfall
