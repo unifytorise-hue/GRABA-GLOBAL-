@@ -4429,6 +4429,7 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
   setTimeout(refreshFabVisibility, 300);
 
   // Introduce the hint, then fade it to a calmer state after a few seconds
+  setTimeout(()=>{ hint.className='show'; refreshFabVisibility(); }, 600);
   setTimeout(()=>{ hint.className='hide'; }, 8000);
 
   // Browsing/chatting with Gabriella doesn't need an account — only actually
