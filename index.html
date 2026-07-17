@@ -654,15 +654,15 @@
      the same custom property drawGlobe() keeps in sync), so it tracks the
      globe across screen sizes instead of a fixed bottom-right offset. */
   #gabrielHint{position:fixed;left:50%;right:auto;
-    top:calc(50vh - (var(--globe-d, 320px) / 2) - 38px);
+    top:calc(50vh - (var(--globe-d, 320px) / 2) - 80px);
     transform:translateX(-50%);z-index:79;display:none;
     flex-direction:column;align-items:center;pointer-events:none;}
   #gabrielHint.show{display:flex;}
   #gabrielHint.suppressed{opacity:0!important;pointer-events:none;}
-  #gabrielHint .pill{background:rgba(10,8,16,.82);backdrop-filter:blur(14px) saturate(140%);border:1px solid rgba(255,255,255,.12);
+  #gabrielHint .pill{background:rgba(87,31,132,.85);backdrop-filter:blur(14px) saturate(140%);border:1px solid rgba(188,119,255,.35);
     border-radius:999px;padding:6px 12px;box-shadow:0 10px 24px -8px rgba(0,0,0,.55);
     display:flex;align-items:center;gap:6px;}
-  #gabrielHint .pill span.dot{width:5px;height:5px;border-radius:50%;background:#bc77ff;box-shadow:0 0 8px rgba(188,119,255,.8);animation:gDotPulse 1.8s ease-in-out infinite;}
+  #gabrielHint .pill span.dot{width:5px;height:5px;border-radius:50%;background:#8B5CF6;box-shadow:0 0 8px rgba(139,92,246,.85);animation:gDotPulse 1.8s ease-in-out infinite;}
   #gabrielHint .pill span.txt{font-family:'Outfit',sans-serif;font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
     color:rgba(255,255,255,.92);white-space:nowrap;}
   #gabrielHint.hide{opacity:0;transform:translateX(-50%) scale(.96);transition:opacity .25s,transform .25s;pointer-events:none;}
