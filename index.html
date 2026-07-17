@@ -690,10 +690,6 @@
   #gabrielPanel.on #gabrielSheet{transform:translateX(0);opacity:1;}
   .gHead{padding:14px 16px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,0.06);}
   .gHead .gHeadMark{width:26px;height:26px;flex-shrink:0;filter:drop-shadow(0 0 8px rgba(188,119,255,.5));}
-  .gHead .avatar{width:38px;height:38px;border-radius:50%;
-    background:radial-gradient(circle at 32% 28%,#8b6dff 0%,#571f84 55%,#2a0f4a 100%)
-      url('assets/graba-icon-mark.png') center/70% no-repeat;
-    box-shadow:0 0 0 1px rgba(255,255,255,0.08) inset;flex-shrink:0;}
   .gHead .who{flex:1;min-width:0;}
   .gHead .who .n{font-family:'Playfair Display',serif;font-style:italic;font-size:19px;line-height:1.1;}
   .gHead .who .r{font-family:'Inter',sans-serif;font-size:9px;letter-spacing:2.2px;text-transform:uppercase;
@@ -724,7 +720,12 @@
   .gThRow:hover .gThDel{opacity:1;}
   .gThRow .gThDel:hover{color:#ff6b6b;}
   #gMessages{flex:1;min-width:0;overflow-y:auto;overflow-x:hidden;padding:14px 14px 4px;display:flex;flex-direction:column;align-items:stretch;gap:14px;scroll-behavior:smooth;}
-  .gEmpty{width:100%;max-width:100%;box-sizing:border-box;margin:auto;text-align:center;padding:24px;color:rgba(255,255,255,0.55);}
+  /* margin:0 auto (not the old margin:auto) — #gMessages is a flex column,
+     and margin:auto on both axes vertically centered this block in the
+     middle of the empty message area, pushing "Hello, I'm Gabriella" down
+     with a big dead gap above it. Horizontal-only centering keeps it near
+     the top instead. */
+  .gEmpty{width:100%;max-width:100%;box-sizing:border-box;margin:0 auto;text-align:center;padding:24px;color:rgba(255,255,255,0.55);}
   .gEmpty .gEmojiRow{font-family:'Playfair Display',serif;font-style:italic;font-size:26px;color:#fff;margin-bottom:10px;}
   .gEmpty p{font-size:13px;line-height:1.55;max-width:280px;margin:0 auto 14px;}
   .gStarters{display:flex;flex-direction:column;gap:8px;max-width:300px;margin:0 auto;}
@@ -4099,7 +4100,6 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
       <div class="gHead">
         <div class="mark gHeadMark" role="img" aria-label="Graba"></div>
         <button id="gThreadsBtn" aria-label="Threads">☰</button>
-        <div class="avatar" role="img" aria-label="Gabriella"></div>
         <div class="who"><div class="n">Gabriella</div><div class="r">Your AI Travel Agent</div></div>
         <button id="gClose" aria-label="Close">✕</button>
       </div>
