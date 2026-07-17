@@ -4221,6 +4221,10 @@ function saveOnboardOrigin(){
 function closeOnboarding(){
   document.getElementById('onboardOverlay').style.display='none';
   try{ localStorage.setItem(ONBOARD_KEY,'1'); }catch(e){}
+  // First run: only now is the home screen actually visible to the user —
+  // see triggerPackSideSwipeHint()'s comment below for why this can't just
+  // be a flat setTimeout from page load.
+  if(typeof triggerPackSideSwipeHint==='function') setTimeout(triggerPackSideSwipeHint, 400);
 }
 document.getElementById('onboardNextBtn').onclick=()=>{
   if(ONBOARD_STEPS[onboardStep].isOrigin) saveOnboardOrigin();
@@ -4280,6 +4284,31 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
     <span class="gOrbit"></span>
     <span class="gCore"><span class="gInner"></span><img class="gMark" src="assets/graba-icon-mark.png" alt="Gabriella"></span>`;
   document.body.appendChild(fab);
+
+  // The FAB's CSS `bottom` offset is only a same-value guess at aligning it
+  // with the search box's go-arrow button next to it — #bottomStack's actual
+  // bottom edge shifts with its flex content (promptSub wrapping, chips
+  // getting populated, etc.), so a fixed offset drifts out of alignment on
+  // real content/devices. Measure and pin the FAB's vertical center to the
+  // go-button's real center instead, and re-measure whenever that content
+  // could have changed size.
+  function alignFabToSearchBox(){
+    const goBtn=document.querySelector('.searchBox button');
+    if(!goBtn) return;
+    const goRect=goBtn.getBoundingClientRect();
+    const fabRect=fab.getBoundingClientRect();
+    if(goRect.height===0 || fabRect.height===0) return;
+    const targetCenterY=goRect.top+goRect.height/2;
+    fab.style.top=(targetCenterY-fabRect.height/2)+'px';
+    fab.style.bottom='auto';
+  }
+  window.addEventListener('resize', alignFabToSearchBox);
+  window.addEventListener('load', alignFabToSearchBox);
+  [50,300,900,2000].forEach(ms=>setTimeout(alignFabToSearchBox, ms));
+  const bottomStackEl=document.getElementById('bottomStack');
+  if(bottomStackEl && window.ResizeObserver){
+    new ResizeObserver(alignFabToSearchBox).observe(bottomStackEl);
+  }
 
   const hint=document.createElement('div');
   hint.id='gabrielHint';
@@ -4634,14 +4663,29 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
   }, 2500);
 })();
 
-/* Left/right swipe hint under the card ring — appears shortly after the
-   home screen loads, gone 5s after that (matches attachRingCardGestures()'s
-   horizontal-drag-rotates-the-globe behavior above). */
-(function(){
+/* Left/right swipe hint under the card ring — appears once the home screen
+   is actually visible, gone 5s after that (matches
+   attachRingCardGestures()'s horizontal-drag-rotates-the-globe behavior
+   above). Deliberately NOT a flat setTimeout from script-parse time: on a
+   first run the onboarding overlay covers the screen for as long as the
+   user takes to click through it, and on a real device/network the page's
+   'load' event (fonts, globe texture, etc.) can itself take a few seconds —
+   either one could burn through a flat 5s window before the user ever sees
+   the card ring, which is exactly what was reported. triggerPackSideSwipeHint()
+   is called from closeOnboarding() (first run) and, for returning users who
+   never see onboarding, once the page has actually finished loading below. */
+function triggerPackSideSwipeHint(){
   const el=document.getElementById('packSideSwipeHint');
   if(!el) return;
-  setTimeout(()=>{ el.classList.add('on'); }, 700);
+  el.classList.add('on');
   setTimeout(()=>{ el.classList.remove('on'); }, 5000);
+}
+(function(){
+  let seen=false;
+  try{ seen=!!localStorage.getItem(ONBOARD_KEY); }catch(e){}
+  if(!seen) return; // first run — closeOnboarding() below triggers it instead
+  if(document.readyState==='complete'){ setTimeout(triggerPackSideSwipeHint, 500); }
+  else window.addEventListener('load', ()=>setTimeout(triggerPackSideSwipeHint, 500));
 })();
 </script>
 
