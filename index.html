@@ -669,7 +669,11 @@
   #gabrielHint.show{opacity:1;transform:translateX(-50%) scale(1);transition:opacity .35s,transform .35s;}
   #gabrielHint{animation:gHintFloat 3.2s ease-in-out infinite;}
   @keyframes gDotPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(1.35)}}
-  @keyframes gHintFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+  /* translateX(-50%) is baked into every keyframe, not just the base rule —
+     a running CSS animation replaces the whole transform property rather
+     than merging with it, so without this the horizontal centering from
+     .show/.hide was silently lost the instant this animation kicked in. */
+  @keyframes gHintFloat{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-3px)}}
   /* Destination category chips (in Gabriella's empty state) — auto-scrolls
      right-to-left on its own (a looping marquee, not a manual drag-scroll):
      .gCatTrack holds the category buttons rendered twice back-to-back (see
@@ -4391,9 +4395,18 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
     send();
   }
 
-  // Keep Gabriella visible across every screen, but step aside when a
+  // Keep Gabriella's FAB visible across every screen, but step aside when a
   // full-screen overlay/modal takes over so it never covers actions.
   const OVERLAY_SELECTORS=['#modalOverlay','#confirmOverlay','#onboardOverlay','#profileOverlay','#tripsView'];
+  // The "SPIN · TAP · TELL GABRIELLA" hint specifically only makes sense on
+  // the home/globe screen (two of the three actions it names — spin, tap —
+  // are globe gestures), unlike the FAB which stays available everywhere.
+  function onHomeScreen(){
+    const tripsEl=document.getElementById('tripsView');
+    const mapVisible=mapView && getComputedStyle(mapView).display!=='none';
+    const tripsVisible=tripsEl && getComputedStyle(tripsEl).display!=='none';
+    return !mapVisible && !tripsVisible;
+  }
   function refreshFabVisibility(){
     if(panel.classList.contains('on')){ return; }
     const suppressed=OVERLAY_SELECTORS.some(sel=>{
@@ -4404,10 +4417,10 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
       return true;
     });
     fab.classList.toggle('suppressed', suppressed);
-    hint.classList.toggle('suppressed', suppressed);
+    hint.classList.toggle('suppressed', suppressed || !onHomeScreen());
   }
   const overlayObserver=new MutationObserver(refreshFabVisibility);
-  OVERLAY_SELECTORS.forEach(sel=>{
+  [...OVERLAY_SELECTORS,'#mapView'].forEach(sel=>{
     const el=document.querySelector(sel);
     if(el) overlayObserver.observe(el, {attributes:true, attributeFilter:['style','class']});
   });
