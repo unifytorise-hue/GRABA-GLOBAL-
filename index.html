@@ -86,7 +86,7 @@
      tagline text are illegible. The one exception is the big topBar header
      mark, overridden below to the full lockup image. */
   .mark{width:min(32vw,142px);height:auto;aspect-ratio:1719/1417;flex-shrink:0;background:url('assets/graba-icon-mark.png') center/contain no-repeat;filter:drop-shadow(0 0 22px rgba(188,119,255,.55));}
-  #topBar .brandSlot .mark{background-image:url('assets/graba-logo.png');width:min(26vw,110px);margin-bottom:2px;}
+  #topBar .brandSlot .mark{background-image:url('assets/graba-logo.png');width:min(27vw,114px);margin-bottom:2px;}
   #topBarActions{display:contents;}
 
 
@@ -649,8 +649,14 @@
     transform:translateX(-50%);box-shadow:0 0 10px rgba(188,119,255,.95);}
   @keyframes gRingRotate{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
   @keyframes gOrbitSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-  #gabrielHint{position:fixed;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 110px);z-index:79;display:none;
-    flex-direction:column;align-items:flex-end;pointer-events:none;}
+  /* Floats above the globe specifically (not tied to the FAB anymore) —
+     positioned relative to the globe's own real center/radius (--globe-d,
+     the same custom property drawGlobe() keeps in sync), so it tracks the
+     globe across screen sizes instead of a fixed bottom-right offset. */
+  #gabrielHint{position:fixed;left:50%;right:auto;
+    top:calc(50vh - (var(--globe-d, 320px) / 2) - 38px);
+    transform:translateX(-50%);z-index:79;display:none;
+    flex-direction:column;align-items:center;pointer-events:none;}
   #gabrielHint.show{display:flex;}
   #gabrielHint.suppressed{opacity:0!important;pointer-events:none;}
   #gabrielHint .pill{background:rgba(10,8,16,.82);backdrop-filter:blur(14px) saturate(140%);border:1px solid rgba(255,255,255,.12);
@@ -659,10 +665,8 @@
   #gabrielHint .pill span.dot{width:5px;height:5px;border-radius:50%;background:#bc77ff;box-shadow:0 0 8px rgba(188,119,255,.8);animation:gDotPulse 1.8s ease-in-out infinite;}
   #gabrielHint .pill span.txt{font-family:'Outfit',sans-serif;font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
     color:rgba(255,255,255,.92);white-space:nowrap;}
-  #gabrielHint .tail{width:0;height:0;margin-right:10px;border-left:5px solid transparent;border-right:5px solid transparent;
-    border-top:5px solid rgba(10,8,16,.82);}
-  #gabrielHint.hide{opacity:0;transform:translateX(8px);transition:opacity .25s,transform .25s;pointer-events:none;}
-  #gabrielHint.show{opacity:1;transform:translateX(0);transition:opacity .35s,transform .35s;}
+  #gabrielHint.hide{opacity:0;transform:translateX(-50%) scale(.96);transition:opacity .25s,transform .25s;pointer-events:none;}
+  #gabrielHint.show{opacity:1;transform:translateX(-50%) scale(1);transition:opacity .35s,transform .35s;}
   #gabrielHint{animation:gHintFloat 3.2s ease-in-out infinite;}
   @keyframes gDotPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.55;transform:scale(1.35)}}
   @keyframes gHintFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
@@ -2637,6 +2641,31 @@ function buildMarkerPhotoUrl(key){
   return `https://images.unsplash.com/photo-${photoId}?auto=format&fit=crop&w=140&h=140&q=70`;
 }
 
+// Real per-destination photos via Wikipedia's REST summary API — free, no
+// API key needed, and CORS-enabled for a client-side fetch (unlike a real
+// Unsplash/Pexels search API, which needs a secret access key with nowhere
+// safe to live in a static site with no build step or server). Looked up
+// by plain city name, matching how Wikipedia titles most place articles.
+// Cached in-memory per session so the same destination is never fetched
+// twice. Callers keep whatever seeded Unsplash scene-photo they already
+// set synchronously as the fallback — a card's photo is never left
+// broken, this is a best-effort upgrade layered on top, not a dependency.
+const realPhotoCache={};
+async function fetchRealPlacePhoto(placeName){
+  if(placeName in realPhotoCache) return realPhotoCache[placeName];
+  try{
+    const res=await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(placeName)}`);
+    if(!res.ok) throw new Error('lookup failed');
+    const data=await res.json();
+    const url=(data.originalimage && data.originalimage.source) || (data.thumbnail && data.thumbnail.source) || null;
+    realPhotoCache[placeName]=url;
+    return url;
+  }catch(_){
+    realPhotoCache[placeName]=null;
+    return null;
+  }
+}
+
 // Display-only category label per scene — same "invented, no real-world
 // source" spirit as the hotel-side profitPct/supplierPriority fields; SCENES
 // is a 5-way procedural bucket (see seedNum), not real destination metadata.
@@ -2731,6 +2760,16 @@ function addGlobeMarker(key){
   const ringEl = packBeltScrollEl ? buildRingCard(key,d) : null;
   if(ringEl) packBeltScrollEl.appendChild(ringEl);
   globeMarkers.push({key, dest:d, el, ringEl});
+  // Upgrade to a real photo of this specific place asynchronously — the
+  // seeded Unsplash scene photo set above (both here and inside
+  // buildRingCard) stays in place as the fallback if this fails.
+  const cityName=d.city.split(',')[0]||d.city;
+  fetchRealPlacePhoto(cityName).then(url=>{
+    if(!url) return;
+    el.style.backgroundImage=`url('${url}')`;
+    const img=ringEl && ringEl.querySelector('.pcImg');
+    if(img) img.style.backgroundImage=`url('${url}')`;
+  });
 }
 
 function dismissGlobeMarker(key){
@@ -4090,7 +4129,7 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
   const hint=document.createElement('div');
   hint.id='gabrielHint';
   hint.className='hide';
-  hint.innerHTML='<div class="pill"><span class="dot"></span><span class="txt">SPIN • TAP • TELL GABRIELLA</span></div><div class="tail"></div>';
+  hint.innerHTML='<div class="pill"><span class="dot"></span><span class="txt">SPIN • TAP • TELL GABRIELLA</span></div>';
   document.body.appendChild(hint);
 
   const panel=document.createElement('div');
