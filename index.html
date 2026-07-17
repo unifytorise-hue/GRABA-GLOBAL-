@@ -679,7 +679,7 @@
   .priceCluster .clusterRange{font-size:12px;font-weight:800;}
   .priceCluster .clusterCount{font-size:9px;font-weight:600;opacity:.85;letter-spacing:.2px;}
 
-  /* ========================= GABRIELLA — AI TRAVEL ASSISTANT ========================= */
+  /* ========================= GRABBY — AI TRAVEL ASSISTANT ========================= */
   #gabrielFab{position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);z-index:80;
     width:54px;height:54px;border-radius:50%;border:none;background:transparent;cursor:pointer;
     display:flex;align-items:center;justify-content:center;pointer-events:auto;
@@ -729,7 +729,7 @@
      than merging with it, so without this the horizontal centering from
      .show/.hide was silently lost the instant this animation kicked in. */
   @keyframes gHintFloat{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-3px)}}
-  /* Destination category chips (in Gabriella's empty state) — auto-scrolls
+  /* Destination category chips (in Grabby's empty state) — auto-scrolls
      right-to-left on its own (a looping marquee, not a manual drag-scroll):
      .gCatTrack holds the category buttons rendered twice back-to-back (see
      renderMessages()) and animates from translateX(0) to -50%, which is
@@ -793,7 +793,7 @@
   #gMessages{flex:1;min-width:0;overflow-y:auto;overflow-x:hidden;padding:14px 14px 4px;display:flex;flex-direction:column;align-items:stretch;gap:14px;scroll-behavior:smooth;}
   /* margin:0 auto (not the old margin:auto) — #gMessages is a flex column,
      and margin:auto on both axes vertically centered this block in the
-     middle of the empty message area, pushing "Hello, I'm Gabriella" down
+     middle of the empty message area, pushing "Hello, I'm Grabby" down
      with a big dead gap above it. Horizontal-only centering keeps it near
      the top instead. */
   .gEmpty{width:100%;max-width:100%;box-sizing:border-box;margin:0 auto;text-align:center;padding:24px;color:rgba(255,255,255,0.55);}
@@ -1187,7 +1187,7 @@
    SUPABASE — real backend. Auth, wallet, trips and bookings all
    live in this project; nothing in this file talks to localStorage
    for anything account-related (see AUTH GATE below for the one
-   exception that's deliberately local: Gabriella's thread list, which
+   exception that's deliberately local: Grabby's thread list, which
    is just UI bookkeeping, not account data).
 ============================================================ */
 const SUPABASE_URL='https://mpkklamqfjwfuciuuxae.supabase.co';
@@ -1198,7 +1198,7 @@ let currentUser=null;
 // Auth is on-demand, not a startup gate: browsing/search/hotel details work
 // for anyone, signed in or not (the globe view must never force a sign-in).
 // requireAuth() is the single gate used by anything that actually needs an
-// account — wallet, trips, Gabriella, topping up, and booking itself. Call it
+// account — wallet, trips, Grabby, topping up, and booking itself. Call it
 // right before the action; if it returns false the auth card is shown and
 // the caller should stop, letting the user retry the same action once
 // signed in. openAuth/closeAuth just toggle the overlay; the real sign
@@ -1219,7 +1219,7 @@ function requireAuth(message){
 }
 
 /* ============================================================
-   PERSISTENT STATE — localStorage for profile & Gabriella thread UI
+   PERSISTENT STATE — localStorage for profile & Grabby thread UI
    bookkeeping only. Wallet and trips are real Supabase data — see
    loadWalletAndTrips() further down.
 ============================================================ */
@@ -2439,7 +2439,7 @@ function animate(){
 // synchronously here ran it before that declaration had executed, throwing
 // an uncaught "Cannot access 'globeMarkers' before initialization" on every
 // frame forever, which aborted the rest of this script's top-level
-// execution (destStrip, Gabriel panel injection, map view/wallet/trips
+// execution (destStrip, Grabby panel injection, map view/wallet/trips
 // init — everything after this point never ran). rAF fires after the whole
 // script finishes evaluating, so every later const/IIFE is ready by then.
 requestAnimationFrame(animate);
@@ -4284,7 +4284,7 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
 
 
 /* ============================================================
-   GABRIELLA — GRABA travel AI assistant
+   GRABBY — GRABA travel AI assistant
    Multiple threads, persisted to localStorage in this browser.
 ============================================================ */
 (function initGabriel(){
@@ -4310,17 +4310,17 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
   // ---------- Build DOM ----------
   const fab=document.createElement('button');
   fab.id='gabrielFab';
-  fab.setAttribute('aria-label','Ask Gabriella, AI travel assistant');
+  fab.setAttribute('aria-label','Ask Grabby, AI travel assistant');
   fab.innerHTML=`
     <span class="gGlow"></span>
     <span class="gRing">
       <svg viewBox="0 0 100 100" aria-hidden="true">
         <defs><path id="gTextPath" d="M 50, 50 m -42, 0 a 42,42 0 1,1 84,0 a 42,42 0 1,1 -84,0"/></defs>
-        <text><textPath href="#gTextPath" startOffset="0">YOUR AI TRAVEL AGENT - GABRIELLA · YOUR AI TRAVEL AGENT - GABRIELLA ·</textPath></text>
+        <text><textPath href="#gTextPath" startOffset="0">YOUR AI TRAVEL AGENT - GRABBY · YOUR AI TRAVEL AGENT - GRABBY ·</textPath></text>
       </svg>
     </span>
     <span class="gOrbit"></span>
-    <span class="gCore"><span class="gInner"></span><img class="gMark" src="assets/graba-icon-mark.png" alt="Gabriella"></span>`;
+    <span class="gCore"><span class="gInner"></span><img class="gMark" src="assets/graba-icon-mark.png" alt="Grabby"></span>`;
   document.body.appendChild(fab);
 
   // The FAB's CSS `bottom` offset is only a same-value guess at aligning it
@@ -4351,7 +4351,7 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
   const hint=document.createElement('div');
   hint.id='gabrielHint';
   hint.className='hide';
-  hint.innerHTML='<div class="pill"><span class="dot"></span><span class="txt">SPIN • TAP • TELL GABRIELLA</span></div>';
+  hint.innerHTML='<div class="pill"><span class="dot"></span><span class="txt">SPIN • TAP • TELL GRABBY</span></div>';
   document.body.appendChild(hint);
 
   const panel=document.createElement('div');
@@ -4368,12 +4368,12 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
       <div class="gHead">
         <div class="mark gHeadMark" role="img" aria-label="Graba"></div>
         <button id="gThreadsBtn" aria-label="Threads">☰</button>
-        <div class="who"><div class="n">Gabriella</div><div class="r">Your AI Travel Agent</div></div>
+        <div class="who"><div class="n">Grabby</div><div class="r">Your AI Travel Agent</div></div>
         <button id="gClose" aria-label="Close">✕</button>
       </div>
       <div id="gMessages"></div>
       <form id="gComposer">
-        <textarea id="gInput" rows="1" placeholder="Ask Gabriella anything about your trip…" autocomplete="off"></textarea>
+        <textarea id="gInput" rows="1" placeholder="Ask Grabby anything about your trip…" autocomplete="off"></textarea>
         <button id="gSend" type="submit" aria-label="Send">→</button>
       </form>
     </div>`;
@@ -4446,7 +4446,7 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
       // so the marquee animation can scroll a full -50% and loop seamlessly
       // instead of visibly snapping back to the start.
       const catButtons=CATEGORIES.map((c,i)=>`<button class="gCat" type="button" data-cat="${i}"><span class="gCatIco">${c.ico}</span><span>${escapeHtml(c.label)}</span></button>`).join('');
-      empty.innerHTML=`<div class="gEmojiRow">Hello, I'm Gabriella.</div>
+      empty.innerHTML=`<div class="gEmojiRow">Hello, I'm Grabby.</div>
         <div class="gCatLbl">Pick a vibe · starts a new thread</div>
         <div class="gCatRow"><div class="gCatTrack">${catButtons}${catButtons}</div></div>
         <div class="gCatLbl">Or try a starter</div>
@@ -4563,7 +4563,7 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
         // server-side error (e.g. a missing API key secret) is in the raw
         // response body on error.context, which invoke() doesn't surface
         // itself. Read it so the bubble shows something diagnosable.
-        let msg=(error && error.message) || 'Gabriella is unavailable right now. Please try again.';
+        let msg=(error && error.message) || 'Grabby is unavailable right now. Please try again.';
         if(error && error.context && typeof error.context.clone==='function'){
           try{
             const body=await error.context.clone().json();
@@ -4623,10 +4623,10 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
     send();
   }
 
-  // Keep Gabriella's FAB visible across every screen, but step aside when a
+  // Keep Grabby's FAB visible across every screen, but step aside when a
   // full-screen overlay/modal takes over so it never covers actions.
   const OVERLAY_SELECTORS=['#modalOverlay','#confirmOverlay','#onboardOverlay','#profileOverlay','#tripsView','#itineraryOverlay'];
-  // The "SPIN · TAP · TELL GABRIELLA" hint specifically only makes sense on
+  // The "SPIN · TAP · TELL GRABBY" hint specifically only makes sense on
   // the home/globe screen (two of the three actions it names — spin, tap —
   // are globe gestures), unlike the FAB which stays available everywhere.
   function onHomeScreen(){
@@ -4659,7 +4659,7 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
   setTimeout(()=>{ hint.className='show'; refreshFabVisibility(); }, 600);
   setTimeout(()=>{ hint.className='hide'; }, 8000);
 
-  // Browsing/chatting with Gabriella doesn't need an account — only actually
+  // Browsing/chatting with Grabby doesn't need an account — only actually
   // completing a booking does (already gated separately, see requireAuth()
   // call inside the booking flow). Opening the chat panel itself should
   // never force a login screen.
