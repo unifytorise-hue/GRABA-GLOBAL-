@@ -168,6 +168,39 @@
     font-size:11.5px;font-weight:700;padding:8px;border-radius:12px;cursor:pointer;}
   .cancelTripBtn:active{background:#fff5f5;}
   #tripsEmpty{text-align:center;color:#999;font-size:13px;padding:60px 20px;}
+  .tripCard{cursor:pointer;}
+
+  /* ---------- ITINERARY DETAIL (single-trip document view, tap a trip card) ----------
+     Same bottom-sheet pattern as #profileOverlay/#walletOverlay for visual
+     consistency. Every field here comes straight from the real bookings row
+     (see loadWalletAndTrips()) — nothing invented (no fake seat/gate number,
+     no barcode/QR pretending to be an airline boarding pass), which is why
+     itNote below is explicit that this is a booking confirmation, not an
+     official airline boarding pass. */
+  #itineraryOverlay{position:absolute;inset:0;background:rgba(15,11,21,0.55);display:none;z-index:27;
+    align-items:flex-end;}
+  #itinerarySheet{width:100%;max-height:88vh;background:var(--paper);border-radius:22px 22px 0 0;
+    overflow-y:auto;color:var(--ink);animation:slideUp .28s ease;position:relative;}
+  #itinerarySheet .handle{width:38px;height:4px;background:#e2e2e2;border-radius:4px;margin:10px auto 4px;}
+  #itineraryClose{position:absolute;top:14px;right:16px;width:32px;height:32px;border-radius:50%;border:none;
+    background:#f3f3f3;color:#555;font-size:14px;cursor:pointer;z-index:2;}
+  #itineraryDoc{padding:34px 22px 6px;}
+  .itDest{font-family:'Playfair Display',serif;font-style:italic;font-size:24px;font-weight:600;}
+  .itSub{font-size:12px;color:#999;margin-top:2px;}
+  .itRefRow{margin-top:18px;background:linear-gradient(135deg,var(--purple),var(--purple-deep));
+    border-radius:14px;padding:14px 16px;}
+  .itRefLabel{font-size:9.5px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,.65);}
+  .itRefCode{font-family:'Outfit',monospace;font-size:19px;font-weight:800;color:#fff;letter-spacing:1.5px;margin-top:3px;}
+  .itDivider{border-top:1.5px dashed #e5e0ec;margin:18px 0;}
+  .itSection{margin-bottom:14px;}
+  .itSecTitle{font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:#aaa;margin-bottom:3px;}
+  .itSecVal{font-size:13.5px;font-weight:600;color:var(--ink);}
+  #itBadges{display:flex;gap:8px;flex-wrap:wrap;}
+  .itTotalRow{display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:800;
+    padding-bottom:20px;}
+  .itTotalRow span:last-child{color:var(--purple);font-size:17px;}
+  .itNote{padding:14px 22px calc(env(safe-area-inset-bottom,0px) + 20px);font-size:10.5px;line-height:1.5;
+    color:#aaa;border-top:1px solid #f0f0f0;text-align:center;}
 
   /* ---------- LOADING SKELETON ---------- */
   @keyframes shimmer{0%{background-position:-300px 0;}100%{background-position:300px 0;}}
@@ -913,6 +946,43 @@
       <button id="profileBtn" title="Profile"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></button>
     </div>
     <div id="tripsList"></div>
+  </div>
+
+  <!-- ================= ITINERARY DETAIL (tap a trip card) ================= -->
+  <div id="itineraryOverlay">
+    <div id="itinerarySheet">
+      <div class="handle"></div>
+      <button id="itineraryClose" aria-label="Close">✕</button>
+      <div id="itineraryDoc">
+        <div class="itDest" id="itDest">—</div>
+        <div class="itSub" id="itSub">—</div>
+        <div class="itRefRow">
+          <div class="itRefLabel">Booking reference</div>
+          <div class="itRefCode" id="itRef">—</div>
+        </div>
+        <div class="itDivider"></div>
+        <div class="itSection">
+          <div class="itSecTitle">Traveller</div>
+          <div class="itSecVal" id="itTraveller">—</div>
+        </div>
+        <div class="itSection">
+          <div class="itSecTitle">Flight</div>
+          <div class="itSecVal" id="itFlight">—</div>
+        </div>
+        <div class="itSection">
+          <div class="itSecTitle">Stay</div>
+          <div class="itSecVal" id="itHotel">—</div>
+        </div>
+        <div class="itSection">
+          <div class="itSecTitle">Paid with</div>
+          <div class="itSecVal" id="itPayment">—</div>
+        </div>
+        <div id="itBadges"></div>
+        <div class="itDivider"></div>
+        <div class="itTotalRow"><span>Total paid</span><span id="itTotal">—</span></div>
+      </div>
+      <div class="itNote">This is your Graba booking confirmation, not an official airline boarding pass — have this reference and your traveller name (and ID/passport) ready at check-in.</div>
+    </div>
   </div>
 
   <!-- ================= PROFILE ================= -->
@@ -4003,12 +4073,46 @@ function renderTripsList(){
       ${t.cancelled
         ? '<div class="badge cancelledBadge">Cancelled</div>'
         : '<button class="cancelTripBtn" data-ref="'+t.ref+'">Cancel booking</button>'}`;
+    // Tap the card (anywhere but the cancel button) to open the full
+    // itinerary/booking-confirmation document — see openItinerary().
+    c.onclick=(e)=>{ if(e.target.closest('.cancelTripBtn')) return; openItinerary(t.ref); };
     list.appendChild(c);
   });
   list.querySelectorAll('.cancelTripBtn').forEach(btn=>{
     btn.onclick=()=>cancelTrip(btn.dataset.ref);
   });
 }
+
+// Full-screen single-trip "document" view — every field here is real data
+// already stored on the booking row (see loadWalletAndTrips()), nothing
+// invented. This is the "show at the airport" itinerary: booking ref,
+// traveller name, flight/hotel details, payment. It deliberately does not
+// pretend to be an official airline boarding pass (no fake barcode/QR/
+// seat/gate) — see the note rendered under it in the HTML.
+function openItinerary(ref){
+  const t=myTrips.find(x=>x.ref===ref);
+  if(!t) return;
+  const nightsLabel=`${t.nights} night${t.nights===1?'':'s'}`;
+  document.getElementById('itDest').textContent=`${t.city}, ${t.country}`;
+  document.getElementById('itSub').textContent=`${nightsLabel} · ${t.traveller}`;
+  document.getElementById('itRef').textContent=t.ref;
+  document.getElementById('itTraveller').textContent=t.traveller;
+  document.getElementById('itFlight').textContent=`${t.flight.airline} · ${t.flight.time} · ${t.flight.duration} · ${t.flight.stops}`;
+  document.getElementById('itHotel').textContent=`${t.hotelName} · ${nightsLabel}`;
+  document.getElementById('itPayment').textContent=t.paymentLabel;
+  document.getElementById('itTotal').textContent=fmtR(t.total);
+  document.getElementById('itBadges').innerHTML=
+    (t.insurance?'<div class="badge">✓ Travel insurance</div>':'')+
+    (t.cancelled?'<div class="badge cancelledBadge">Cancelled</div>':'');
+  document.getElementById('itineraryOverlay').style.display='flex';
+}
+function closeItinerary(){
+  document.getElementById('itineraryOverlay').style.display='none';
+}
+document.getElementById('itineraryClose').onclick=closeItinerary;
+document.getElementById('itineraryOverlay').addEventListener('click',(e)=>{
+  if(e.target.id==='itineraryOverlay') closeItinerary();
+});
 async function cancelTrip(ref){
   const trip=myTrips.find(t=>t.ref===ref);
   if(!trip || trip.cancelled) return;
@@ -4443,7 +4547,7 @@ document.getElementById('onboardSkipBtn').onclick=()=>{
 
   // Keep Gabriella's FAB visible across every screen, but step aside when a
   // full-screen overlay/modal takes over so it never covers actions.
-  const OVERLAY_SELECTORS=['#modalOverlay','#confirmOverlay','#onboardOverlay','#profileOverlay','#tripsView'];
+  const OVERLAY_SELECTORS=['#modalOverlay','#confirmOverlay','#onboardOverlay','#profileOverlay','#tripsView','#itineraryOverlay'];
   // The "SPIN · TAP · TELL GABRIELLA" hint specifically only makes sense on
   // the home/globe screen (two of the three actions it names — spin, tap —
   // are globe gestures), unlike the FAB which stays available everywhere.
