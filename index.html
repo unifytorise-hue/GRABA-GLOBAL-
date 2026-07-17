@@ -2002,7 +2002,24 @@ function renderGlobeRaster(effRadius){
         // day/night shading as a depth cue without crushing the dark side.
         const texLight=0.66+0.5*diffuse;
         const raw=sampleEarthTex(lon,lat);
-        r=raw[0]*texLight; g=raw[1]*texLight; b=raw[2]*texLight;
+        if(land){
+          r=raw[0]*texLight; g=raw[1]*texLight; b=raw[2]*texLight;
+        } else {
+          // Deep ocean in this source photo is a flat, near-black
+          // RGB(2,5,20) — confirmed by direct pixel sampling, not "dark
+          // blue", basically void. Multiplicative lighting alone can never
+          // brighten a near-zero base value into anything visible, which
+          // is why the whole globe (~71% ocean at any viewing angle) read
+          // as almost entirely dark regardless of light direction.
+          // Blending toward a real deep-sea blue before lighting fixes
+          // that while keeping the texture's own subtle per-pixel
+          // variation (ice-shelf edges, shallow reefs, coastal shading).
+          const OCEAN_BASE_R=10, OCEAN_BASE_G=55, OCEAN_BASE_B=110;
+          const blend=0.35; // how much of the raw (near-black) photo data shows through
+          r=(raw[0]*blend+OCEAN_BASE_R*(1-blend))*texLight;
+          g=(raw[1]*blend+OCEAN_BASE_G*(1-blend))*texLight;
+          b=(raw[2]*blend+OCEAN_BASE_B*(1-blend))*texLight;
+        }
         // Sun glint on water — was a large flat gray-white smear (visible
         // reported bug), not a sparkle: diffuse>0.965 still covers ~4.7% of
         // visible sphere pixels (confirmed via Python repro of this exact
