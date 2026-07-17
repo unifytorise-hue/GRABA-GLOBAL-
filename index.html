@@ -2062,15 +2062,28 @@ const LIGHT=(()=>{ const l={x:-0.5,y:0.55,z:0.7}; const m=Math.sqrt(l.x*l.x+l.y*
 // raster falls back to the original procedural land/ocean noise coloring, so
 // the globe never breaks, it just looks less photoreal until the image is in.
 const EARTH_TEX=new Image();
+// Some WebKit builds enforce canvas-tainting rules more strictly than
+// Chromium even for what should be a same-origin image; crossOrigin is a
+// no-op for a real same-origin load but a cheap defensive guard against
+// getImageData() throwing a SecurityError below on stricter engines.
+EARTH_TEX.crossOrigin='anonymous';
 let earthTexData=null, earthTexW=0, earthTexH=0, earthTexReady=false;
 EARTH_TEX.onload=()=>{
-  earthTexW=EARTH_TEX.naturalWidth; earthTexH=EARTH_TEX.naturalHeight;
-  const texCanvas=document.createElement('canvas');
-  texCanvas.width=earthTexW; texCanvas.height=earthTexH;
-  const texCtx=texCanvas.getContext('2d');
-  texCtx.drawImage(EARTH_TEX,0,0);
-  earthTexData=texCtx.getImageData(0,0,earthTexW,earthTexH).data;
-  earthTexReady=true;
+  try{
+    earthTexW=EARTH_TEX.naturalWidth; earthTexH=EARTH_TEX.naturalHeight;
+    const texCanvas=document.createElement('canvas');
+    texCanvas.width=earthTexW; texCanvas.height=earthTexH;
+    const texCtx=texCanvas.getContext('2d');
+    texCtx.drawImage(EARTH_TEX,0,0);
+    earthTexData=texCtx.getImageData(0,0,earthTexW,earthTexH).data;
+    earthTexReady=true;
+  }catch(err){
+    // getImageData() can throw (e.g. a stricter tainted-canvas check on
+    // some engine); leave earthTexReady false so renderGlobeRaster() keeps
+    // using its procedural fallback instead of getting stuck half-init.
+    console.warn('[globe] earth texture failed to read into canvas — using procedural fallback rendering.', err);
+    earthTexReady=false;
+  }
 };
 EARTH_TEX.onerror=()=>{ console.warn('[globe] earth-texture.jpg failed to load — using procedural fallback rendering.'); };
 EARTH_TEX.src='assets/earth-texture.jpg';
@@ -2367,33 +2380,58 @@ function drawLabels(cx,cy,R){
 
 function animate(){
   requestAnimationFrame(animate);
-  if(autoRotate) angleY+=0.0016;
+  // Everything below is wrapped in try/catch: this is a per-frame callback,
+  // so an uncaught throw here doesn't abort the rest of the script (unlike
+  // a top-level throw — see the note below requestAnimationFrame(animate)
+  // further down) but it WOULD silently leave the canvas permanently blank
+  // forever with zero signal why, since the same error just repeats every
+  // frame. Catching it lets us paint a visible diagnostic straight onto the
+  // canvas instead — no devtools/console access needed to see what broke,
+  // which matters on a phone where most users can't get to one.
+  try{
+    if(autoRotate) angleY+=0.0016;
 
-  if(!dragging && !flying && (Math.abs(velY)>0.0002 || Math.abs(velX)>0.0002)){
-    angleY += velY;
-    angleX = Math.max(-1.3, Math.min(1.3, angleX + velX));
-    velY *= 0.965; velX *= 0.965;
-  }
-
-  if(flying){
-    flyT+=0.016;
-    const t=Math.min(1,flyT);
-    const ease=1-Math.pow(1-t,3);
-    angleY=flyStartY+(flyTargetY-flyStartY)*ease;
-    angleX=flyStartX+(flyTargetX-flyStartX)*ease;
-    radius=baseRadius*(1+ease*1.15);
-    zoom=flyZoomStart+(flyZoomTarget-flyZoomStart)*ease;
-    if(t>=1){
-      flying=false;
-      if(flyPurpose==='search') setTimeout(showMapView,280);
-      else if(flyPurpose==='explore') setTimeout(showCountryChip,280);
-      // 'continent' just settles the view — no chip, no map
+    if(!dragging && !flying && (Math.abs(velY)>0.0002 || Math.abs(velX)>0.0002)){
+      angleY += velY;
+      angleX = Math.max(-1.3, Math.min(1.3, angleX + velX));
+      velY *= 0.965; velX *= 0.965;
     }
-  }
 
-  drawGlobe();
-  if(typeof updateGlobePhotoMarkers==='function') updateGlobePhotoMarkers();
-  if(typeof updateRingCards==='function') updateRingCards();
+    if(flying){
+      flyT+=0.016;
+      const t=Math.min(1,flyT);
+      const ease=1-Math.pow(1-t,3);
+      angleY=flyStartY+(flyTargetY-flyStartY)*ease;
+      angleX=flyStartX+(flyTargetX-flyStartX)*ease;
+      radius=baseRadius*(1+ease*1.15);
+      zoom=flyZoomStart+(flyZoomTarget-flyZoomStart)*ease;
+      if(t>=1){
+        flying=false;
+        if(flyPurpose==='search') setTimeout(showMapView,280);
+        else if(flyPurpose==='explore') setTimeout(showCountryChip,280);
+        // 'continent' just settles the view — no chip, no map
+      }
+    }
+
+    drawGlobe();
+    if(typeof updateGlobePhotoMarkers==='function') updateGlobePhotoMarkers();
+    if(typeof updateRingCards==='function') updateRingCards();
+  }catch(err){
+    if(!window.__globeRenderErrorLogged){
+      window.__globeRenderErrorLogged=true;
+      console.error('[globe] render loop error:', err);
+    }
+    try{
+      ctx.setTransform(DPR||1,0,0,DPR||1,0,0);
+      ctx.fillStyle='rgba(10,8,16,0.94)';
+      ctx.fillRect(0,0,W||300,H||300);
+      ctx.fillStyle='#ff6b6b';
+      ctx.font='12px sans-serif';
+      ctx.textAlign='left';
+      ctx.fillText('Globe render error (screenshot this):',16,28);
+      ctx.fillText(String((err&&err.message)||err).slice(0,90),16,48);
+    }catch{}
+  }
 }
 // Deferred via rAF rather than an eager synchronous call: animate() reaches
 // into updateGlobePhotoMarkers(), which touches `globeMarkers` — a const
