@@ -496,7 +496,13 @@
      individual .packCard elements opt back in. */
   #packBelt{pointer-events:none;position:absolute;left:50%;top:50%;
     width:0;height:0;z-index:5;
-    transform:translate(-50%,-50%);
+    /* Shifted down from dead-center so the card ring's bottom edge lands on
+       the globe's bottom edge instead of straddling its equator — frees up
+       the globe's upper/middle surface (continent labels etc.) to stay
+       visible above the cards. R (globe radius) is 0.5*globe-d, half a
+       card's height is 0.186*globe-d, so the shift needed is their
+       difference: 0.5-0.186 = 0.314*globe-d. */
+    transform:translate(-50%,-50%) translateY(calc(var(--globe-d, 320px) * 0.314));
     perspective:1200px;perspective-origin:50% 50%;}
   #packBeltHead{display:none;}
   #packBeltHead .pbS{font-size:9px;letter-spacing:2.4px;text-transform:uppercase;color:rgba(255,255,255,.5);text-align:center;}
