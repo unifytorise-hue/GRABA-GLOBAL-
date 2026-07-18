@@ -134,3 +134,9 @@ Fixed by adding a shared `CORS_HEADERS` object to both functions: an `if (req.me
 `create-paystack-transaction` was also added to this repo's `supabase/functions/` for the first time here (previously deployed-only, never version-controlled).
 
 **If "the mock/fallback data keeps showing even though the secret is definitely set" ever comes up again, check CORS first.**
+
+## CRITICAL ops note: GitHub Pages deployment can silently stop triggering on merge
+
+Discovered 2026-07-18: a real booking (`GRB-F163219D`, paid "Credit Card", `created_at` 05:32 UTC) went through on the live site hours after PR #47 — which blocks exactly that — had been merged (23:15 UTC the previous day). The code on `main` was correct (verified directly via `git show origin/main:index.html`); the bug was that **GitHub Pages had stopped deploying**. The repo's `pages build and deployment` check (a GitHub-managed "dynamic" check, not a workflow file in `.github/workflows/`) last succeeded for PR #46's merge commit at 22:44 UTC — every merge after that, including #47, produced no new deployment run at all, so the live site silently kept serving the pre-#47 build for 8+ hours with no error surfaced anywhere in the repo's PR/Actions UI.
+
+No MCP tool available in this environment can read or change the repo's Pages source settings, or force a redeploy directly. The only working lever found: pushing a fresh commit to `main` (this very edit) to see if it un-sticks the deployment queue. **If a merged fix doesn't appear live after a few minutes, don't assume it's a browser cache — check the actual `bookings`/relevant table's `created_at` against the merge time, and check whether a `pages build and deployment` run exists for that merge commit's SHA (via the Actions tab or `list_workflow_runs`) before concluding the code itself is wrong.**
